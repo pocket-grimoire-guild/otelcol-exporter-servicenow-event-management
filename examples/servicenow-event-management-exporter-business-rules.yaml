@@ -1,0 +1,86 @@
+receivers:
+  # Accept OTLP logs over HTTP for local validation and examples.
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  # Protect the Collector process from memory spikes before export.
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 256
+    spike_limit_mib: 64
+  # Cap ServiceNow request size at 100 records per batch.
+  batch:
+    timeout: 10s
+    send_batch_size: 100
+    send_batch_max_size: 100
+
+exporters:
+  # Print received telemetry during local validation runs.
+  debug:
+    verbosity: basic
+
+  # Direct instance Business Rules compatibility. This intentionally uses
+  # em_event.do?JSONv2&sysparm_action=insertMultiple instead of the high
+  # throughput /api/global/em/jsonv2 endpoint so Event table Business Rules run.
+  servicenow_event_management:
+    endpoint: ${env:SERVICENOW_INSTANCE_URL}
+    mode: instance
+    api: business_rules
+    auth:
+      authenticator: basicauth/servicenow
+    source: opentelemetry-business-rules
+    type: otel-log
+    # Stable identity controls ServiceNow alert de-duplication.
+    message_key:
+      attributes: [service.name, host.name, event.name]
+      separator: "|"
+    # Explicit servicenow.severity overrides the fallback OTel severity mapping.
+    severity:
+      from_attribute: servicenow.severity
+      default: 5
+      clear_resolution_state: Closing
+      mapping:
+        fatal: 1
+        error: 2
+        warn: 4
+        info: 5
+    # Non-control attributes are packed into additional_info with bounded values.
+    additional_info:
+      max_attributes: 128
+      max_value_length: 1024
+    timeout: 30s
+    sending_queue:
+      enabled: true
+      queue_size: 1000
+      # Keep retry-queue batching aligned with the batch processor cap.
+      batch:
+        sizer: items
+        min_size: 100
+        max_size: 100
+        flush_timeout: 200ms
+    retry_on_failure:
+      enabled: true
+      initial_interval: 5s
+      max_interval: 30s
+
+extensions:
+  # Basic auth is handled by the Collector extension and injected into the
+  # exporter HTTP client.
+  basicauth/servicenow:
+    client_auth:
+      username: ${env:SERVICENOW_USERNAME}
+      password: ${env:SERVICENOW_PASSWORD}
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+service:
+  extensions: [basicauth/servicenow, health_check]
+  pipelines:
+    # Logs pipeline only: each log becomes one ServiceNow event.
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [servicenow_event_management, debug]

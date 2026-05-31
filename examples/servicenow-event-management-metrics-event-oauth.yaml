@@ -1,0 +1,108 @@
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  # Keep only the metric datapoints that should become ServiceNow events.
+  # This example treats demo.checkout.error_rate values above 90 as threshold
+  # breaches. Values at or below 90 are dropped before they can create events.
+  filter/metric_threshold:
+    error_mode: propagate
+    metric_conditions:
+      - 'metric.name != "demo.checkout.error_rate"'
+      - 'datapoint.value_double <= 90'
+
+  # metricsaslogs turns each surviving metric datapoint into a log record.
+  # This transform then makes the log explicit ServiceNow Event Management
+  # input by setting source, node, metric_name, severity, description, and a
+  # stable message_key. The exporter still receives logs, not raw metrics.
+  transform/servicenow_metric_event:
+    error_mode: propagate
+    log_statements:
+      - context: log
+        statements:
+          - set(log.attributes["event.name"], "metric.threshold.breach")
+          - set(log.attributes["test.run.id"], "${env:SERVICENOW_METRICS_EVENT_RUN_ID}")
+          - set(log.attributes["alert.threshold"], "90")
+          - set(log.attributes["servicenow.source"], "opentelemetry-metrics-threshold")
+          - set(log.attributes["servicenow.event_class"], "otel-metric-threshold")
+          - set(log.attributes["servicenow.type"], "metric-threshold")
+          - set(log.attributes["servicenow.resource"], resource.attributes["service.name"])
+          - set(log.attributes["servicenow.node"], resource.attributes["host.name"])
+          - set(log.attributes["servicenow.metric_name"], log.attributes["metric.name"])
+          - set(log.attributes["servicenow.severity"], 3)
+          - set(log.attributes["servicenow.resolution_state"], "New")
+          - set(log.attributes["servicenow.description"], Concat(["Metric threshold breach", log.attributes["metric.name"], log.attributes["gauge.value"]], " "))
+          - set(log.attributes["servicenow.message_key"], Concat([log.attributes["test.run.id"], resource.attributes["service.name"], resource.attributes["host.name"], log.attributes["metric.name"], log.attributes["route"]], "|"))
+          - set(log.body, log.attributes["servicenow.description"])
+
+  batch/servicenow:
+    timeout: 5s
+    send_batch_size: 10
+    send_batch_max_size: 10
+
+connectors:
+  # Bridge the metrics pipeline into the logs pipeline. Simple gauge values
+  # become log attributes such as gauge.value, which the transform above uses
+  # in the ServiceNow description and additional_info.
+  metricsaslogs:
+    include_resource_attributes: true
+    include_scope_info: true
+
+exporters:
+  debug:
+    verbosity: basic
+
+  # The ServiceNow exporter remains the logs-to-events exporter. OAuth client
+  # credentials are delegated to the Collector oauth2client auth extension.
+  servicenow_event_management:
+    endpoint: ${env:SERVICENOW_INSTANCE_URL}
+    mode: instance
+    api: jsonv2
+    auth:
+      authenticator: oauth2client/servicenow
+    source: opentelemetry-metrics-threshold
+    type: metric-threshold
+    additional_info:
+      max_attributes: 128
+      max_value_length: 1024
+    timeout: 30s
+    sending_queue:
+      enabled: true
+      queue_size: 1000
+      batch:
+        sizer: items
+        min_size: 10
+        max_size: 10
+        flush_timeout: 200ms
+    retry_on_failure:
+      enabled: true
+      initial_interval: 5s
+      max_interval: 30s
+
+extensions:
+  oauth2client/servicenow:
+    client_id: ${env:SERVICENOW_CLIENT_ID}
+    client_secret: ${env:SERVICENOW_CLIENT_SECRET}
+    token_url: ${env:SERVICENOW_TOKEN_URL}
+    grant_type: client_credentials
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+service:
+  extensions: [oauth2client/servicenow, health_check]
+  pipelines:
+    # First pipeline: receive OTLP metrics, apply threshold selection, and hand
+    # selected datapoints to metricsaslogs.
+    metrics/threshold:
+      receivers: [otlp]
+      processors: [filter/metric_threshold]
+      exporters: [metricsaslogs]
+    # Second pipeline: receive converted log records, enrich them with
+    # ServiceNow event fields, then export to Event Management.
+    logs/servicenow:
+      receivers: [metricsaslogs]
+      processors: [transform/servicenow_metric_event, batch/servicenow]
+      exporters: [servicenow_event_management, debug]

@@ -1,0 +1,21 @@
+type: servicenow_event_management
+display_name: ServiceNow Event Management Exporter
+github_project: pocket-grimoire-guild/otelcol-exporter-servicenow-event-management
+
+status:
+  class: exporter
+  stability:
+    development: [logs]
+  disable_codecov_badge: true
+  codeowners:
+    active: [traytonwhite]
+
+tests:
+  config:
+    endpoint: "http://localhost:0"
+    mode: mid
+    sending_queue:
+      enabled: false
+    retry_on_failure:
+      enabled: false
+  expect_consumer_error: true

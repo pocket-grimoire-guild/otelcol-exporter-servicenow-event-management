@@ -1,0 +1,63 @@
+name: Bug report
+description: Report a reproducible exporter bug
+title: "[bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include ServiceNow credentials, authorization headers, bearer tokens, OAuth secrets, MID API keys, customer payloads, or unredacted additional_info.
+  - type: input
+    id: version
+    attributes:
+      label: Exporter version
+      description: Release tag or commit SHA.
+    validations:
+      required: true
+  - type: input
+    id: collector-version
+    attributes:
+      label: Collector version
+    validations:
+      required: true
+  - type: dropdown
+    id: endpoint-mode
+    attributes:
+      label: Endpoint mode
+      options:
+        - instance
+        - mid
+        - unknown
+    validations:
+      required: true
+  - type: input
+    id: auth
+    attributes:
+      label: Auth path
+      description: basicauth, bearertokenauth, oauth2client, headers_setter, mTLS, other.
+    validations:
+      required: true
+  - type: textarea
+    id: config
+    attributes:
+      label: Sanitized Collector config
+      render: yaml
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: What happened?
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Sanitized logs or errors
+      render: text

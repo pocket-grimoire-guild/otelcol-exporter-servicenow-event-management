@@ -1,0 +1,52 @@
+dist:
+  # End-user Collector Builder distribution for the metrics-derived event example. It adds
+  # the processors and connector needed to turn metric breaches into logs.
+  name: otelcol-servicenow-event-management-metrics-event
+  description: OpenTelemetry Collector with ServiceNow Event Management metrics-derived event example
+  output_path: ./otelcol-servicenow-event-management-metrics-event
+  version: 0.1.0
+
+exporters:
+  # ServiceNow Event Management exporter plus debug output for local inspection.
+  - gomod:
+      github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management v0.1.0
+    import: github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management/exporter/servicenoweventmanagementexporter
+  - gomod:
+      go.opentelemetry.io/collector/exporter/debugexporter v0.153.0
+
+processors:
+  # filter selects threshold breaches; transform adds ServiceNow event fields;
+  # batch caps ServiceNow request size.
+  - gomod:
+      github.com/open-telemetry/opentelemetry-collector-contrib/processor/filterprocessor v0.153.0
+  - gomod:
+      github.com/open-telemetry/opentelemetry-collector-contrib/processor/transformprocessor v0.153.0
+  - gomod:
+      go.opentelemetry.io/collector/processor/batchprocessor v0.153.0
+
+receivers:
+  # OTLP metrics enter through the standard Collector receiver.
+  - gomod:
+      go.opentelemetry.io/collector/receiver/otlpreceiver v0.153.0
+
+connectors:
+  # Bridges the metrics pipeline into the logs pipeline.
+  - gomod:
+      github.com/open-telemetry/opentelemetry-collector-contrib/connector/metricsaslogsconnector v0.153.0
+
+extensions:
+  # OAuth client credentials authenticate ServiceNow requests; health_check
+  # gives local validation a readiness probe.
+  - gomod:
+      github.com/open-telemetry/opentelemetry-collector-contrib/extension/healthcheckextension v0.153.0
+  - gomod:
+      github.com/open-telemetry/opentelemetry-collector-contrib/extension/oauth2clientauthextension v0.153.0
+
+providers:
+  # Env/file/yaml providers are enough for local example configuration.
+  - gomod:
+      go.opentelemetry.io/collector/confmap/provider/envprovider v1.59.0
+  - gomod:
+      go.opentelemetry.io/collector/confmap/provider/fileprovider v1.59.0
+  - gomod:
+      go.opentelemetry.io/collector/confmap/provider/yamlprovider v1.59.0

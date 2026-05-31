@@ -1,0 +1,188 @@
+# Source Map
+
+Last reviewed: 2026-05-30.
+
+This file records the external references used to shape product and implementation direction. Keep it as a source map, not a full copy of upstream docs.
+
+## ServiceNow ITOM Event Management
+
+- Push events to the instance with JSON v2: https://www.servicenow.com/docs/r/it-operations-management/event-management/send-events-via-web-service.html
+  - Last reviewed against ServiceNow Australia docs on 2026-05-28.
+  - Takeaway: the direct instance JSON v2 page lists `evt_mgmt_integration` as the required role.
+  - Takeaway: generic Event Management ingestion uses `POST https://<instance>.service-now.com/api/global/em/jsonv2` with a `records` array.
+  - Takeaway: ServiceNow says Business Rules on the event table are not invoked by `/api/global/em/jsonv2`.
+  - Takeaway: ServiceNow also supports `em_event.do?JSONv2&sysparm_action=insertMultiple` when Business Rules should be activated, but states the JSON v2 API has superior performance.
+  - Takeaway: do not add custom fields to `em_event`; send extra event data through `additional_info`.
+  - Takeaway: for MID Server use with the `insertMultiple` URL, ServiceNow documents MID properties including `mid.probe.event.queue.compress=false`, `mid.probe.event.bulk_size=100`, and `mid.probe.event.endpoint.url=em_event.do?JSONv2%26sysparm_action=insertMultiple`.
+  - Takeaway: JSON v2 accepts one or more events in a single payload; examples use `records` with one and two event objects.
+  - Takeaway: `metric_name` is documented as the name of the metric that triggered the alert, while `type` is general grouping; `message_key` defaults to `source+node+type+resource+metric_name` when not supplied.
+  - Takeaway: the documented state-like JSON v2 field is `resolution_state`; no separate inbound `state` field is listed for the exporter to populate.
+  - Takeaway: public examples show `additional_info` as an object, but other ServiceNow Event Management docs and PDI behavior require treating it as a JSON string for reliable storage.
+- JSONv2 web service: https://www.servicenow.com/docs/r/api-reference/web-services/c_JSONv2WebService.html
+  - Last reviewed against ServiceNow Australia docs on 2026-05-28.
+  - Takeaway: JSONv2 is a platform-level processor triggered by the standalone `JSONv2` URL parameter and can return JSON object results for modification operations.
+  - Takeaway: JSONv2 authentication and ACL behavior are ServiceNow platform concerns; the exporter should keep delegating credentials to Collector HTTP auth and TLS settings.
+- JSON object format: https://www.servicenow.com/docs/r/api-reference/web-services/c_JSONObjectFormat.html
+  - Last reviewed against ServiceNow Australia docs on 2026-05-28.
+  - Takeaway: JSONv2 record-array responses include metadata fields prefixed with `__`.
+  - Takeaway: ServiceNow's examples show record-level success as `__status: success` and record-level data-policy failure as `__status: failure` with `__error`; exporters must inspect non-empty 2xx response bodies instead of trusting HTTP status alone.
+- JSON response status: https://www.servicenow.com/docs/r/api-reference/web-services/c_ResponseStatus.html
+  - Last reviewed against ServiceNow Australia docs on 2026-05-28.
+  - Takeaway: JSONv2 response metadata allows `__status` values of `success` or `failure` for each record.
+  - Takeaway: JSONv2 top-level failure responses can contain error and reason fields, which generally indicate the whole JSON operation failed.
+- REST API HTTP response codes: https://www.servicenow.com/docs/r/api-reference/rest-api-explorer/r_RESTAPIHTTPResponseCodes.html
+  - Last reviewed against ServiceNow Australia docs on 2026-05-28.
+  - Takeaway: ServiceNow REST responses use standard HTTP codes, but JSONv2 still has body-level status metadata. A 2xx code proves the HTTP request was accepted, not that every JSONv2 record succeeded.
+- Event field format for event collection: https://www.servicenow.com/docs/r/it-operations-management/event-management/c_EMIntegrateRequirementEvent.html?contentId=MXxZKDzOzoP0FwsQ1IlNwA
+  - Last reviewed against ServiceNow Australia docs on 2026-05-29.
+  - Takeaway: documents core `em_event` fields, `message_key` default identity, severity labels including Clear, `resolution_state` values, UTC/GMT `time_of_event`, description length, and `additional_info`.
+  - Takeaway: documents `source`, `node`, `type`, and `resource` as 100-character fields in this page, but the `source` value conflicts with the Event API source limit and live PDI `em_event.source` dictionary/read-back evidence.
+  - Takeaway: `additional_info` is described as a JSON string whose JSON values are strings; numeric values should be converted to strings.
+  - Takeaway: non-JSON Additional information is normalized during event processing into JSON key/value content, but plain text becomes generic content and is not a good exporter output shape.
+- Event API, global/server API reference: https://www.servicenow.com/docs/r/api-reference/server-api-reference/EventAPI.html
+  - Last reviewed against ServiceNow Australia docs on 2026-05-29.
+  - Takeaway: this is a ServiceNow Event Management API for MID-created events rather than the JSON v2 web-service payload, but it is official Event Management field material.
+  - Takeaway: `setField` documents predefined Event fields and states that unknown keys are added to `additional_info`.
+  - Takeaway: documented predefined field limits include `source` 200, `event_class` 100, `resource` 100, `type` 100, `message_key` 1024, `description` 4000, `additional_info` 4000, `ci_identifier` 1000, and `time_of_event` 40.
+  - Takeaway: `resolution_state` valid values are `New` and `Closing`, with default `New`; the exporter should not send arbitrary local states as portable Event Management API values.
+- Event identifiers: https://www.servicenow.com/docs/r/it-operations-management/event-management/c_EMEventIdentifier.html
+  - Last reviewed against ServiceNow Australia docs on 2026-05-29.
+  - Takeaway: by default events are identified by Message Key, Domain, and Category; when Message Key is absent, ServiceNow generates it from Source, Type, Node, Resource, and Metric Name.
+  - Takeaway: because source, node, resource, type, and metric name can participate in identity generation, the exporter should bound them before transport and record any truncation rather than letting ServiceNow silently change identity material.
+- Use legacy listener transform scripts: https://www.servicenow.com/docs/r/it-operations-management/event-management/migrate-transform-scripts.html
+  - Takeaway: `/api/global/em/inbound_event` is a legacy listener-transform endpoint kept for upgraded integrations, not the preferred JSON v2 path for an exporter that already emits Event Management fields.
+  - Takeaway: push connectors create `/api/sn_em_connector/em/inbound_event`; custom listener transform scripts should be migrated if an integration moves to that connector endpoint.
+- Push events through MID WebService: https://www.servicenow.com/docs/r/it-operations-management/event-management/event-collection-via-MID-using-push.html
+  - Last reviewed against ServiceNow Australia docs on 2026-05-16.
+  - Takeaway: MID Server mode uses `/api/mid/em/jsonv2`; it also supports transform endpoints for non-JSON v2 payloads.
+  - Takeaway: MID JSON v2 uses the same format clients use to send event messages to the instance.
+  - Takeaway: MID WebService endpoint selection is separate from the upstream instance endpoint the MID Server forwards to; Business Rules compatibility is configured on MID properties, while the exporter still posts to the MID JSON v2 listener.
+- Configure MID WebService Event Collector context: https://www.servicenow.com/docs/r/it-operations-management/event-management/configure-em-context-extension.html
+  - Takeaway: JSON v2 sent to MID does not need a transform script; non-JSON v2 payloads do.
+  - Takeaway: MID inbound event URLs are for messages that are not in JSON v2 format and require a `TransformEvents_*` script.
+- Integrate with push connectors: https://www.servicenow.com/docs/r/it-operations-management/event-management/configure-listener-transform-script.html
+  - Takeaway: push connectors accept source-specific messages through `/api/sn_em_connector/em/inbound_event?source=...` and require event rules or connector scripts to transform payloads into Event Management fields.
+- Configure MID Web Server extension: https://www.servicenow.com/docs/r/it-operations-management/event-management/configure-mid-web-server-extension.html
+  - Takeaway: MID Web Server authentication can use API key, Basic, or mTLS.
+- Activate a plugin on a PDI: https://www.servicenow.com/docs/r/platform-administration/activate-plugin-pdi.html?contentId=rHWCRBV0j9sdj2rcqwBY7Q
+  - Takeaway: PDIs can activate many plugins without purchasing them, but ServiceNow states that some plugins are not available for activation on PDIs.
+- Activating a PDI plugin from the Developer Site: https://www.servicenow.com/docs/r/application-development/activating_a_pdi_plugin_from_the_developer_site.html?contentId=GNsNilsRDPhj4jXQRTKlhw
+  - Takeaway: plugins that require activation by ServiceNow personnel do not appear in the PDI plugin list; many Store apps cannot be installed to PDIs.
+- Components installed with Event Management: https://www.servicenow.com/docs/r/it-operations-management/event-management/r_InstalledWithEventManagement.html?contentId=iv0GcGqwhIDS3Z8KaMTMbQ
+  - Last reviewed against ServiceNow Australia docs on 2026-05-15.
+  - Takeaway: Event Management is plugin `com.glideapp.itom.snac`; it installs `evt_mgmt_integration` and the `em_event` table, which are useful real-instance readiness checks.
+- Custom alert fields: https://www.servicenow.com/docs/r/it-operations-management/event-management/populate-custom-alert-fields.html
+  - Last reviewed against ServiceNow Australia docs on 2026-05-23.
+  - Takeaway: additional event data should flow through `additional_info`; matching Additional information field names can populate custom alert fields.
+  - Takeaway: Event Rules can also add Additional information fields for custom alert population, and ServiceNow can exclude fields from copying through the alert blacklist property.
+  - Takeaway: depending on permissions, custom alert fields may need a ServiceNow-managed prefix such as `user_`; exporter configs must use the target instance's actual technical field names.
+- Testing and sending events manually: https://www.servicenow.com/docs/r/it-operations-management/event-management/t_EMCreateEventManually.html
+  - Takeaway: Event Management UI path is All > Event Management > All Events.
+  - Takeaway: ServiceNow describes Additional information as a JSON string and says string values are supported; numeric values should be converted to strings.
+- OAuth inbound: https://www.servicenow.com/docs/r/platform-security/authentication/oauth-inbound.html
+  - Last reviewed against ServiceNow Australia docs on 2026-05-15.
+  - Takeaway: inbound OAuth lets third-party clients access ServiceNow APIs and includes client credentials as the backend-service grant type.
+- ServiceNow OAuth client credentials: https://www.servicenow.com/docs/r/xanadu/platform-security/authentication/client-credentials.html
+  - Last reviewed against ServiceNow Xanadu docs on 2026-05-15.
+  - Takeaway: inbound client credentials is controlled by the `glide.oauth.inbound.client.credential.grant_type.enabled` system property, which is false by default.
+- Add the OAuth Application User: https://www.servicenow.com/docs/r/platform-security/authentication/add-oauth-application-user.html
+  - Last reviewed against ServiceNow Australia docs on 2026-05-15.
+  - Takeaway: client credentials requests are passed for the OAuth Application User on the OAuth client; if that user is missing or the client credentials property is false, the authorization request is not passed.
+- Set up mutual authentication: https://www.servicenow.com/docs/r/platform-security/certificate-based-authentication/set-up-mutual-auth.html
+  - Last reviewed against ServiceNow platform security docs on 2026-05-29.
+  - Takeaway: direct ServiceNow mTLS is an instance-side certificate-based authentication setup, not an exporter-specific auth flow.
+  - Takeaway: setup requires the Certificate-based authentication plugin `com.glide.auth.mutual`; the plugin installs `sys_user_certificate`, `sys_ca_certificate`, and `sys_ca_certificate_api_track`.
+  - Takeaway: the instance must use an ADCv2 load balancer; if it does not, ServiceNow says to contact Now Support.
+  - Takeaway: the documented setup requires certificate-auth administration, a CA certificate trusted by the instance front door, and a user/client-certificate mapping before REST requests can authenticate with a client certificate.
+  - Takeaway: CA certificates should be submitted as PEM CA Cert records and are automatically synced with the load balancer; this makes trust publication an instance/front-door operation, not only a table-record operation.
+  - Takeaway: the certificate-based authentication property page includes Enable certificate based authentication with a documented default of true.
+- Verify inbound mTLS enablement: https://www.servicenow.com/docs/r/platform-administration/ai-search/verify-adcv2-inbound-mtls-enabled.html
+  - Last reviewed against ServiceNow Australia docs on 2026-05-29.
+  - Takeaway: ServiceNow documents `https://<instance>.service-now.com/adcv2/supports_tls` as the no-role status page for inbound mTLS support. A response of `true` means inbound mTLS support is enabled; any other response means it is not enabled and ServiceNow Support must enable it.
+- ServiceNow Community, "Unable to load CA Certificate": https://www.servicenow.com/community/virtual-agent-forum/unable-to-load-ca-certificate/m-p/3155412
+  - Last reviewed on 2026-05-29.
+  - Takeaway: public practitioner report from January 2025 describes PDI-side CA certificate publication failures while testing mTLS. Treat it as corroborating environment context, not official product behavior.
+  - Takeaway: a community reply, not official documentation, states that mTLS requires ADCv2 and that a PDI likely does not support it. Treat this as corroborating evidence only; the official support boundary remains ServiceNow's ADCv2 and `supports_tls` docs.
+- ServiceNow Community, "Check ADCv2 and ADC-to-App mTLS for CBA": https://www.servicenow.com/community/developer-forum/check-adcv2-and-adc-to-app-mtls-for-cba-certificate-based/td-p/2695072
+  - Last reviewed on 2026-05-29.
+  - Takeaway: public developer-instance testing showed `/adcv2/supports_tls` returning HTTP 200 with an empty response rather than `true`, matching ServiceNow's official guidance that anything other than `true` means inbound mTLS is not activated.
+- ServiceNow Community, "Certificate based authentication on Developer instance Xanadu": https://www.servicenow.com/community/sysadmin-forum/certificate-based-authentication-on-developer-instance-xanadu/m-p/3104878
+  - Last reviewed on 2026-05-29.
+  - Takeaway: another public PDI/developer-instance thread asks how to verify ADCv2 support for certificate-based authentication on a developer instance. Keep it as additional context, not authoritative evidence.
+- ServiceNow REST API: https://www.servicenow.com/docs/r/api-reference/rest-api-explorer/c_RESTAPI.html
+  - Last reviewed against ServiceNow API reference docs on 2026-05-16.
+  - Takeaway: REST API access is the relevant surface for direct JSON v2 ingestion; authentication must be accepted by the ServiceNow REST front door before the Event Management endpoint receives the request.
+- Table API: https://www.servicenow.com/docs/r/api-reference/rest-apis/c_TableAPI.html
+  - Last reviewed against ServiceNow API reference docs on 2026-05-16.
+  - Takeaway: generic table inserts use `POST /api/now/table/{tableName}`. For certificate-based auth CA automation, the relevant table is `sys_ca_certificate`, but ServiceNow's certificate-based auth setup page documents the UI form path rather than a dedicated CA-upload REST endpoint.
+- Attachment API: https://www.servicenow.com/docs/r/api-reference/rest-apis/c_AttachmentAPI.html
+  - Last reviewed against ServiceNow API reference docs on 2026-05-16.
+  - Takeaway: generic file uploads use `POST /api/now/attachment/file` with `table_name`, `table_sys_id`, and `file_name`, or multipart `POST /api/now/attachment/upload`. If automating `sys_ca_certificate` setup, attach the PEM CA bundle to the CA Cert record before expecting certificate normalization and publish behavior.
+- Dictionary entry form: https://www.servicenow.com/docs/r/application-development/table-administration-and-data-management/r_DictionaryEntryForm.html
+  - Last reviewed against ServiceNow platform docs on 2026-05-29.
+  - Takeaway: Max length is a logical string-field limit that also controls UI rendering and maps to the nearest physical database type.
+  - Takeaway: ServiceNow says the physical type can provide more available length than the dictionary value; for example, a length of 1000 can map to MEDIUMTEXT and provide up to 4000 characters.
+  - Takeaway: this explains why a PDI could store `metric_name` beyond its `sys_dictionary.max_length=1024`; it does not make values beyond the dictionary max a portable Event Management API contract.
+- Database field type: https://www.servicenow.com/docs/r/platform-administration/r_DatabaseFieldTypes.html
+  - Last reviewed against ServiceNow Australia docs on 2026-05-29.
+  - Takeaway: ServiceNow maps string fields with max length 41-255 to VARCHAR(x), while string fields with max length 256 and above map to MEDIUMTEXT.
+  - Takeaway: small string fields such as `em_event.node` at 100 and `em_event.source` at 200 can behave as hard storage caps, while larger string fields such as `metric_name` can store more than the configured max length.
+- Choice list definitions: https://www.servicenow.com/docs/r/platform-administration/t_ViewChoiceListDefinitions.html
+  - Last reviewed against ServiceNow Washington DC docs on 2026-05-29.
+  - Takeaway: ServiceNow choice fields can be personalized through Configure Choices, and choice values allow up to 40 characters.
+  - Takeaway: configurable choice lists do not override the Event Management API contract for `resolution_state`; portable exporter output should remain limited to `New` and `Closing` unless a deployment maps custom state locally outside the exporter contract.
+- Metric collection from OpenTelemetry metrics: https://www.servicenow.com/docs/r/it-operations-management/event-management/metric-collection-otel.html
+  - Last reviewed against ServiceNow Australia docs on 2026-05-15.
+  - Takeaway: ServiceNow has a MID OTel metrics path, but this is adjacent to the Event Management exporter goal.
+- ServiceNow Cloud Observability events: https://www.servicenow.com/docs/r/it-operations-management/event-management/lightstep-event-collection.html
+  - Takeaway: source-specific connector endpoints exist and may be future modes, but they are not the generic JSON v2 exporter path.
+- Prometheus events integration: https://www.servicenow.com/docs/r/it-operations-management/event-management/prometheus-events-integration.html
+  - Takeaway: ServiceNow uses source-specific inbound connector endpoints for some products.
+
+## OpenTelemetry Collector
+
+- Extend the Collector: https://opentelemetry.io/docs/collector/extend/
+  - Takeaway: custom protocols and proprietary backends belong in custom Collector components.
+- Build custom components: https://opentelemetry.io/docs/collector/extend/custom-component/
+  - Takeaway: implement custom components following Collector package conventions and contrib examples.
+- Build a custom Collector with OCB: https://opentelemetry.io/docs/collector/extend/ocb/
+  - Takeaway: `builder-config.yaml` is the manifest for generating a local distribution; OCB can include custom components by module path plus local `path`.
+- Collector configuration: https://opentelemetry.io/docs/collector/configuration/
+  - Takeaway: components are configured separately and enabled through service pipelines.
+- Exporter package docs: https://pkg.go.dev/go.opentelemetry.io/collector/exporter
+  - Takeaway: exporters consume signal data, register supported signals with `WithLogs`/`WithMetrics`/`WithTraces`, and are enabled through pipelines.
+- Exporter helper docs: https://pkg.go.dev/go.opentelemetry.io/collector/exporter/exporterhelper
+  - Takeaway: queueing, batching, and retry behavior should use Collector helper APIs.
+- Batch processor: https://github.com/open-telemetry/opentelemetry-collector/tree/main/processor/batchprocessor
+  - Takeaway: `send_batch_size` is a trigger, while `send_batch_max_size` enforces an upper limit and splits larger batches.
+- OTLP/HTTP exporter: https://github.com/open-telemetry/opentelemetry-collector/tree/main/exporter/otlphttpexporter
+  - Takeaway: HTTP exporters embed `confighttp.ClientConfig`, create HTTP clients in `Start` with `host.GetExtensions()`, and rely on the HTTP client timeout.
+- Prometheus Remote Write exporter: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/exporter/prometheusremotewriteexporter
+  - Takeaway: contrib HTTP exporters also use `confighttp.ClientConfig.ToClient(ctx, host.GetExtensions(), settings)` for extension-backed auth.
+- Elasticsearch exporter: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/exporter/elasticsearchexporter
+  - Takeaway: supports `confighttp.ClientConfig.Auth`; legacy shortcut credential fields exist, but README points users to auth extensions.
+- OpenSearch exporter: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/exporter/opensearchexporter
+  - Takeaway: examples use `basicauth` extension through HTTP client auth settings.
+- Basic auth extension: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/extension/basicauthextension
+  - Takeaway: use `client_auth` for outbound Basic auth.
+- Bearer token auth extension: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/extension/bearertokenauthextension
+  - Takeaway: use for static bearer token outbound auth.
+- OAuth2 client auth extension: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/extension/oauth2clientauthextension
+  - Takeaway: use for OAuth2 client credentials or JWT bearer token flow with automatic refresh.
+- Headers setter extension: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/extension/headerssetterextension
+  - Takeaway: can act as client auth for custom headers such as MID API key `Authorization: key ...`.
+- Transform processor: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/transformprocessor
+  - Last reviewed against OpenTelemetry Collector Contrib v0.153.0 on 2026-05-31.
+  - Takeaway: use OTTL statements to enrich records before the ServiceNow exporter receives them.
+  - Takeaway: metric statements can use OTTL metric and datapoint contexts, including aggregate functions such as `aggregate_on_attributes` and `aggregate_on_attribute_value`; these aggregate datapoints but do not define Event Management alert lifecycle semantics by themselves.
+- Filter processor: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/filterprocessor
+  - Last reviewed against OpenTelemetry Collector Contrib v0.153.0 on 2026-05-31.
+  - Takeaway: use OTTL conditions to drop records that should not reach the ServiceNow exporter.
+- Metrics as Logs connector: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/connector/metricsaslogsconnector
+  - Last reviewed against OpenTelemetry Collector Contrib v0.153.0 on 2026-05-31.
+  - Takeaway: converts OTel metrics to logs, one log record per metric datapoint, so a Collector pipeline can turn filtered metric datapoints into log-like event records before this exporter.
+  - Takeaway: in v0.153.0 simple gauge and sum values are emitted as log attributes such as `gauge.value` and `sum.value`; the log body is a generic marker, so ServiceNow event descriptions should be set in a following transform processor.
+- OpenTelemetry Collector contrib contributing guide: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/CONTRIBUTING.md
+  - Takeaway: test locally, lint affected modules, run unit tests, and keep module-level targets meaningful.
+- OpenTelemetry metadata generator: https://github.com/open-telemetry/opentelemetry-collector/blob/main/cmd/mdatagen/README.md
+  - Takeaway: components should maintain `metadata.yaml` and a `go:generate mdatagen metadata.yaml` directive so status and generated docs stay standard.

@@ -1,0 +1,100 @@
+receivers:
+  # Accept OTLP logs over both standard Collector protocols.
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  # Protect the Collector process from memory spikes before export.
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 256
+    spike_limit_mib: 64
+  # Cap ServiceNow request size at 100 records per batch.
+  batch:
+    timeout: 10s
+    send_batch_size: 100
+    send_batch_max_size: 100
+
+exporters:
+  # Print received telemetry during local validation runs.
+  debug:
+    verbosity: basic
+
+  # Direct instance JSON v2 export using a static bearer token supplied by an
+  # auth extension.
+  servicenow_event_management:
+    endpoint: ${env:SERVICENOW_INSTANCE_URL}
+    mode: instance
+    auth:
+      authenticator: bearertokenauth/servicenow
+    source: opentelemetry-bearer-validation
+    type: otel-log
+    # Stable identity controls ServiceNow alert de-duplication.
+    message_key:
+      attributes: [service.name, host.name, event.name]
+      separator: "|"
+    # Explicit servicenow.severity overrides the fallback OTel severity mapping.
+    severity:
+      from_attribute: servicenow.severity
+      default: 5
+      clear_resolution_state: Closing
+      mapping:
+        fatal: 1
+        error: 2
+        warn: 4
+        info: 5
+    # Conservative field limits avoid silent ServiceNow truncation.
+    field_limits:
+      source: 200
+      event_class: 100
+      node: 100
+      resource: 100
+      metric_name: 1024
+      type: 100
+      message_key: 1024
+      description: 4000
+      additional_info: 4000
+      resolution_state: 40
+    # Non-control attributes are packed into additional_info with bounded values.
+    additional_info:
+      max_attributes: 128
+      max_value_length: 1024
+    timeout: 30s
+    sending_queue:
+      enabled: true
+      queue_size: 1000
+      # Keep retry-queue batching aligned with the batch processor cap.
+      batch:
+        sizer: items
+        min_size: 100
+        max_size: 100
+        flush_timeout: 200ms
+    retry_on_failure:
+      enabled: true
+      initial_interval: 5s
+      max_interval: 30s
+
+extensions:
+  # Static bearer tokens are useful for short-lived validation. For long-lived
+  # deployments, prefer oauth2client so tokens are refreshed automatically.
+  bearertokenauth/servicenow:
+    token: ${env:SERVICENOW_BEARER_TOKEN}
+  health_check:
+    endpoint: 0.0.0.0:13133
+  pprof:
+    endpoint: 0.0.0.0:1777
+  zpages:
+    endpoint: 0.0.0.0:55679
+
+service:
+  extensions: [bearertokenauth/servicenow, health_check, pprof, zpages]
+  pipelines:
+    # Logs pipeline only: each log becomes one ServiceNow event.
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [servicenow_event_management, debug]

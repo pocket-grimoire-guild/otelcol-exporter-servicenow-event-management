@@ -1,0 +1,29 @@
+# Draft OpenTelemetry Registry entry.
+# Copy this into the OpenTelemetry website repository under data/registry
+# after the repository URL and first public tag exist. The current registry
+# instructions say Collector exporters should use registryType: exporter.
+
+title: ServiceNow Event Management Collector Exporter
+registryType: exporter
+language: collector
+tags:
+  - collector
+  - exporter
+  - logs
+  - servicenow
+  - event-management
+license: Apache-2.0
+description: Sends OpenTelemetry log records to ServiceNow ITOM Event Management JSON v2 as event records.
+authors:
+  - name: Pocket Grimoire Guild
+  - name: Trayton White
+urls:
+  repo: https://github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management
+  docs: https://github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management#readme
+  package: https://pkg.go.dev/github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management/exporter/servicenoweventmanagementexporter
+install:
+  collector:
+    exporters:
+      - gomod:
+          github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management v0.1.0
+        import: github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management/exporter/servicenoweventmanagementexporter

@@ -1,0 +1,50 @@
+dist:
+  # End-user Collector Builder distribution that includes this exporter and the components
+  # needed by the checked-in logs examples.
+  name: otelcol-servicenow-event-management
+  description: OpenTelemetry Collector with ServiceNow Event Management exporter
+  output_path: ./otelcol-servicenow-event-management
+  version: 0.1.0
+
+exporters:
+  # ServiceNow Event Management exporter plus debug output for local inspection.
+  - gomod:
+      github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management v0.1.0
+    import: github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management/exporter/servicenoweventmanagementexporter
+  - gomod:
+      go.opentelemetry.io/collector/exporter/debugexporter v0.153.0
+
+processors:
+  # Keep the default distribution focused: batching and memory protection only.
+  - gomod:
+      go.opentelemetry.io/collector/processor/batchprocessor v0.153.0
+  - gomod:
+      go.opentelemetry.io/collector/processor/memorylimiterprocessor v0.153.0
+
+receivers:
+  # OTLP is the default input protocol for the examples.
+  - gomod:
+      go.opentelemetry.io/collector/receiver/otlpreceiver v0.153.0
+
+extensions:
+  # Auth extensions cover Basic, bearer, OAuth, MID API-key header injection,
+  # and health checks without exporter-owned credential code.
+  - gomod:
+      github.com/open-telemetry/opentelemetry-collector-contrib/extension/basicauthextension v0.153.0
+  - gomod:
+      github.com/open-telemetry/opentelemetry-collector-contrib/extension/bearertokenauthextension v0.153.0
+  - gomod:
+      github.com/open-telemetry/opentelemetry-collector-contrib/extension/headerssetterextension v0.153.0
+  - gomod:
+      github.com/open-telemetry/opentelemetry-collector-contrib/extension/healthcheckextension v0.153.0
+  - gomod:
+      github.com/open-telemetry/opentelemetry-collector-contrib/extension/oauth2clientauthextension v0.153.0
+
+providers:
+  # Env/file/yaml providers are enough for local example configuration.
+  - gomod:
+      go.opentelemetry.io/collector/confmap/provider/envprovider v1.59.0
+  - gomod:
+      go.opentelemetry.io/collector/confmap/provider/fileprovider v1.59.0
+  - gomod:
+      go.opentelemetry.io/collector/confmap/provider/yamlprovider v1.59.0

@@ -1,0 +1,24 @@
+# Local editor and OS files
+.DS_Store
+.idea/
+.vscode/
+
+# Local credentials and runtime environment files
+.env
+.env.*
+!.env.example
+
+# Go and Collector build outputs
+.tools/
+bin/
+dist/
+build/
+coverage.out
+*.test
+otelcol-*/
+*.prof
+
+# Temporary files
+tmp/
+*.tmp
+*.log

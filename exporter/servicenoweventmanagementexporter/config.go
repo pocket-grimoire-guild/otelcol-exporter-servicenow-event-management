@@ -24,7 +24,7 @@ const (
 	APIBusinessRules = "business_rules"
 
 	defaultAdditionalInfoMaxAttributes  = 128
-	defaultAdditionalInfoMaxValueLength = 1024
+	defaultAdditionalInfoMaxValueLength = 4000
 	defaultMessageKeySeparator          = "|"
 )
 

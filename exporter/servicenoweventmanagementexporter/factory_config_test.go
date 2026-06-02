@@ -39,6 +39,7 @@ func TestFactoryDefaultsAndSupportedSignals(t *testing.T) {
 	require.Equal(t, 4000, cfg.FieldLimits.AdditionalInfo)
 	require.Equal(t, 40, cfg.FieldLimits.ResolutionState)
 	require.Equal(t, defaultAdditionalInfoMaxAttributes, cfg.AdditionalInfo.MaxAttributes)
+	require.Equal(t, serviceNowMaxAdditionalInfo, cfg.AdditionalInfo.MaxValueLength)
 	require.Contains(t, cfg.AdditionalInfo.RedactAttributes, "*password*")
 	require.Equal(t, 1, cfg.Severity.Mapping.Fatal)
 	require.Equal(t, 2, cfg.Severity.Mapping.Error)

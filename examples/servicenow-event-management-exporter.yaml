@@ -68,7 +68,7 @@ exporters:
     # bounded JSON string with string-valued keys.
     additional_info:
       max_attributes: 128
-      max_value_length: 1024
+      max_value_length: 4000
     timeout: 30s
     sending_queue:
       enabled: true

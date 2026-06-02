@@ -101,11 +101,15 @@ All field limits must be positive. `field_limits.additional_info` must be at lea
 | `additional_info.exclude_attributes` | glob list | empty | Attribute names to omit. |
 | `additional_info.redact_attributes` | glob list | common secret patterns | Attribute names whose values become `[REDACTED]`. |
 | `additional_info.max_attributes` | integer | `128` | Maximum number of non-control attributes copied. Use `0` for no count limit. |
-| `additional_info.max_value_length` | integer | `1024` | Maximum bytes per copied value. |
+| `additional_info.max_value_length` | integer | `4000` | Maximum bytes per copied value. The final JSON string must still fit `field_limits.additional_info`. |
 
 All `additional_info` values are string-valued. Attributes beginning with `servicenow.` are exporter control attributes and are not copied.
 
 ServiceNow's [Event Management field format](https://www.servicenow.com/docs/r/it-operations-management/event-management/c_EMIntegrateRequirementEvent.html?contentId=MXxZKDzOzoP0FwsQ1IlNwA) describes `additional_info` as a JSON string and says JSON values should be strings. That is why this exporter stringifies non-string OTel values rather than sending a nested object. Strings stay unchanged, scalar numbers and bools use stable string formatting, maps and slices become compact JSON strings, and bytes encode as base64. Values that cannot be rendered safely are dropped and counted under `otel.servicenow.additional_info.dropped_by_value`.
+
+The default value length matches the default total `additional_info` field budget. ServiceNow's [Event API](https://www.servicenow.com/docs/r/api-reference/server-api-reference/EventAPI.html) lists `additional_info` as a predefined Event field with a 4000-character maximum, so this exporter does not treat it as unbounded. Raise `field_limits.additional_info` and validate read-back on the target instance before relying on larger payloads.
+
+The default attribute count remains `128` because it matches OpenTelemetry's [default attribute count limit](https://opentelemetry.io/docs/specs/otel/common/#attribute-limits) and because the final ServiceNow JSON string is still capped separately. Increasing only the count rarely preserves more useful data unless values are very small; prefer `additional_info.include_attributes` for important alert-enrichment keys.
 
 ServiceNow can use Additional information keys to populate custom alert fields when a key name matches the alert field's technical name. To use that behavior, make the upstream OTel attribute name match the target alert field name, or use an upstream transform processor to copy or rename the value before this exporter runs. For example, include fields such as `user_service_owner`, `u_service_owner`, or an application-scoped custom field name only when those are the actual field names in the target ServiceNow instance.
 

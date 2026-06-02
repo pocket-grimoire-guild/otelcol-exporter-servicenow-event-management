@@ -1,6 +1,6 @@
 # Source Map
 
-Last reviewed: 2026-05-30.
+Last reviewed: 2026-06-02.
 
 This file records the external references used to shape product and implementation direction. Keep it as a source map, not a full copy of upstream docs.
 
@@ -40,10 +40,12 @@ This file records the external references used to shape product and implementati
   - Takeaway: `additional_info` is described as a JSON string whose JSON values are strings; numeric values should be converted to strings.
   - Takeaway: non-JSON Additional information is normalized during event processing into JSON key/value content, but plain text becomes generic content and is not a good exporter output shape.
 - Event API, global/server API reference: https://www.servicenow.com/docs/r/api-reference/server-api-reference/EventAPI.html
-  - Last reviewed against ServiceNow Australia docs on 2026-05-29.
+  - Last reviewed against ServiceNow Australia docs on 2026-06-02.
   - Takeaway: this is a ServiceNow Event Management API for MID-created events rather than the JSON v2 web-service payload, but it is official Event Management field material.
+  - Takeaway: `setAdditionalInfo` replaces the event `additional_info` value with a JSON string.
   - Takeaway: `setField` documents predefined Event fields and states that unknown keys are added to `additional_info`.
   - Takeaway: documented predefined field limits include `source` 200, `event_class` 100, `resource` 100, `type` 100, `message_key` 1024, `description` 4000, `additional_info` 4000, `ci_identifier` 1000, and `time_of_event` 40.
+  - Takeaway: use the documented `additional_info` 4000-character limit as the exporter default total field budget and default per-value budget; do not describe `additional_info` as unbounded without target-instance schema/read-back validation.
   - Takeaway: `resolution_state` valid values are `New` and `Closing`, with default `New`; the exporter should not send arbitrary local states as portable Event Management API values.
 - Event identifiers: https://www.servicenow.com/docs/r/it-operations-management/event-management/c_EMEventIdentifier.html
   - Last reviewed against ServiceNow Australia docs on 2026-05-29.
@@ -141,6 +143,10 @@ This file records the external references used to shape product and implementati
 
 ## OpenTelemetry Collector
 
+- OpenTelemetry common specification: https://opentelemetry.io/docs/specs/otel/common/#attribute-limits
+  - Last reviewed against OpenTelemetry docs on 2026-06-02.
+  - Takeaway: OpenTelemetry's default `AttributeCountLimit` is 128 attributes per record, which is a reasonable default for `additional_info.max_attributes`.
+  - Takeaway: OpenTelemetry's default `AttributeValueLengthLimit` is unlimited, but this exporter must still cap values to ServiceNow's configured `additional_info` field budget.
 - Extend the Collector: https://opentelemetry.io/docs/collector/extend/
   - Takeaway: custom protocols and proprietary backends belong in custom Collector components.
 - Build custom components: https://opentelemetry.io/docs/collector/extend/custom-component/

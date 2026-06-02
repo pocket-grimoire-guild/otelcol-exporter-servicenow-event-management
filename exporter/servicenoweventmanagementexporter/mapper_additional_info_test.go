@@ -202,6 +202,25 @@ func TestMapLogsToRecordsKeepsAdditionalInfoWithinConfiguredLimit(t *testing.T) 
 	require.NotEmpty(t, info[additionalInfoDroppedAttributesKey])
 }
 
+func TestMapLogsToRecordsDefaultAdditionalInfoValueLimitUsesFieldBudget(t *testing.T) {
+	cfg := createDefaultConfig().(*Config)
+	cfg.AdditionalInfo.IncludeAttributes = []string{"large.value"}
+
+	logs := sampleLogs()
+	logRecord := logs.ResourceLogs().At(0).ScopeLogs().At(0).LogRecords().At(0)
+	value := strings.Repeat("x", 1500)
+	logRecord.Attributes().PutStr("large.value", value)
+
+	records, err := mapLogsToRecords(logs, cfg)
+	require.NoError(t, err)
+	require.Len(t, records, 1)
+	require.LessOrEqual(t, len(records[0].AdditionalInfo), cfg.FieldLimits.AdditionalInfo)
+
+	info := requireAdditionalInfo(t, records[0])
+	require.Equal(t, value, info["large.value"])
+	require.NotContains(t, info, additionalInfoTruncatedValuesKey)
+}
+
 func TestMapLogsToRecordsLimitsAdditionalInfoAttributeCount(t *testing.T) {
 	cfg := createDefaultConfig().(*Config)
 	cfg.AdditionalInfo.MaxAttributes = 2

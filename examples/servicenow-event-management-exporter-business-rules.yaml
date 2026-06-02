@@ -50,7 +50,7 @@ exporters:
     # Non-control attributes are packed into additional_info with bounded values.
     additional_info:
       max_attributes: 128
-      max_value_length: 1024
+      max_value_length: 4000
     timeout: 30s
     sending_queue:
       enabled: true

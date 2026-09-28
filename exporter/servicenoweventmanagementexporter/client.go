@@ -371,7 +371,7 @@ func summarizeServiceNow2xxJSONResponse(responseBody []byte) (string, error) {
 		if err := json.Unmarshal(rawRecord, &record); err != nil {
 			continue
 		}
-		if isFailureStatus(record.Status) || isFailureStatus(record.JSONStatus) || len(record.Error) > 0 || len(record.JSONError) > 0 {
+		if isFailureStatus(record.Status) || isFailureStatus(record.JSONStatus) || hasNonNullJSONValue(record.Error) || hasNonNullJSONValue(record.JSONError) {
 			failedRecords++
 		}
 	}
@@ -399,10 +399,15 @@ func isFailureStatus(status string) bool {
 }
 
 func hasTopLevelServiceNowError(response serviceNow2xxResponse) bool {
-	if len(response.JSONError) > 0 || len(response.RecordError) > 0 {
+	if hasNonNullJSONValue(response.JSONError) || hasNonNullJSONValue(response.RecordError) {
 		return true
 	}
-	return len(response.Error) > 0 && len(response.Result) == 0 && len(response.Records) == 0
+	return hasNonNullJSONValue(response.Error) && len(response.Result) == 0 && len(response.Records) == 0
+}
+
+func hasNonNullJSONValue(raw json.RawMessage) bool {
+	raw = bytes.TrimSpace(raw)
+	return len(raw) > 0 && !bytes.Equal(raw, []byte("null"))
 }
 
 func withSafeResponseErrorCode(summary string, responseBody []byte) string {

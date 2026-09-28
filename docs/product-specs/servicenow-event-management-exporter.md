@@ -325,7 +325,7 @@ This fallback changes prior behavior for callbacks rejected only because exporte
 
 - Retry transient network errors, 429, and 5xx responses. While verifying a successful 2xx response, retry recognized read interruptions (`io.ErrUnexpectedEOF`, context cancellation/deadline, or a `net.Error`) only when the bounded read has not exceeded its verification limit. The exporter returns a sanitized mode/API/status summary and lets Collector `exporterhelper` apply the configured retry policy. Unknown read errors remain permanent.
 - Treat 400-class validation errors, except 429, as permanent unless implementation evidence shows otherwise.
-- Inspect bounded non-empty 2xx JSONv2 response bodies. Treat record-level `__status: failure`, top-level `_status` or `status` failure, and top-level JSONv2 error objects as permanent exporter errors.
+- Inspect bounded non-empty 2xx JSONv2 response bodies. Treat record-level `__status: failure`, top-level `_status` or `status` failure, and top-level JSONv2 error objects as permanent exporter errors. JSON `null` values in recognized error fields are treated like absent fields.
 - Treat non-empty non-JSON or malformed JSON 2xx response bodies, complete invalid gzip header/checksum errors, and oversized bodies that cannot be verified as permanent, sanitized errors because the exporter cannot verify ServiceNow accepted the records. Empty 2xx responses remain valid for MID JSON v2.
 - Redact auth headers and configured secret fields in all errors.
 - Include endpoint mode, API flavor, status code, and concise failure reason in logs without arbitrary response bodies.

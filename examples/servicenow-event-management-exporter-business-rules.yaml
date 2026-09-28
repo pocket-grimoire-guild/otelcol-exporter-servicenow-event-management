@@ -1,5 +1,5 @@
 receivers:
-  # Accept OTLP logs over HTTP for local validation and examples.
+  # Accept OTLP logs over HTTP for simple smoke tests and examples.
   otlp:
     protocols:
       http:
@@ -18,7 +18,7 @@ processors:
     send_batch_max_size: 100
 
 exporters:
-  # Print received telemetry during local validation runs.
+  # Print received telemetry during local smoke runs.
   debug:
     verbosity: basic
 

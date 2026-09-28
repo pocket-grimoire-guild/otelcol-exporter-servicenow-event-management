@@ -1,0 +1,21 @@
+# Optional overlay, not a standalone Collector config. Apply it after
+# examples/servicenow-event-management-exporter.yaml as described in
+# docs/configuration.md#native-log-context. The default distribution does not
+# include transformprocessor; add it to a custom distribution first.
+processors:
+  transform/log_context:
+    # Unexpected statement errors are logged and ignored so one uncopyable
+    # context value does not deliberately drop otherwise mappable logs.
+    error_mode: ignore
+    log_statements:
+      - 'set(log.attributes["trace_id"], log.trace_id.string) where log.trace_id != TraceID(0x00000000000000000000000000000000) and log.attributes["trace_id"] == nil and resource.attributes["trace_id"] == nil'
+      - 'set(log.attributes["span_id"], log.span_id.string) where log.span_id != SpanID(0x0000000000000000) and log.attributes["span_id"] == nil and resource.attributes["span_id"] == nil'
+      - 'set(log.attributes["instrumentation_scope.name"], instrumentation_scope.name) where instrumentation_scope.name != "" and log.attributes["instrumentation_scope.name"] == nil and resource.attributes["instrumentation_scope.name"] == nil'
+      - 'set(log.attributes["instrumentation_scope.version"], instrumentation_scope.version) where instrumentation_scope.version != "" and log.attributes["instrumentation_scope.version"] == nil and resource.attributes["instrumentation_scope.version"] == nil'
+
+# Config source merging replaces this list. Keep the base processors and place
+# the transform before batch, adapting the list to other pipeline layouts.
+service:
+  pipelines:
+    logs:
+      processors: [memory_limiter, transform/log_context, batch]

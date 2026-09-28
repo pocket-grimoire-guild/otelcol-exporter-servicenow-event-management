@@ -4,6 +4,7 @@
 package servicenoweventmanagementexporter
 
 import (
+	"math"
 	"strconv"
 	"strings"
 
@@ -11,15 +12,19 @@ import (
 	"go.opentelemetry.io/collector/pdata/plog"
 )
 
-func serviceNowSeverity(logRecord plog.LogRecord, logAttrs, resourceAttrs pcommon.Map, cfg mappingConfig) string {
+func serviceNowSeverityWithDiagnostic(logRecord plog.LogRecord, logAttrs, resourceAttrs pcommon.Map, cfg mappingConfig) (string, bool) {
 	attrName := firstNonEmpty(cfg.Severity.FromAttribute, "servicenow.severity")
 	if value, ok := attrValue(logAttrs, resourceAttrs, attrName); ok {
 		if severity, ok := parseServiceNowSeverity(value); ok {
-			return strconv.Itoa(severity)
+			return strconv.Itoa(severity), false
 		}
+		return mappedServiceNowSeverity(logRecord.SeverityNumber(), cfg), true
 	}
+	return mappedServiceNowSeverity(logRecord.SeverityNumber(), cfg), false
+}
 
-	switch severity := logRecord.SeverityNumber(); {
+func mappedServiceNowSeverity(severity plog.SeverityNumber, cfg mappingConfig) string {
+	switch {
 	case severity >= plog.SeverityNumberFatal:
 		return strconv.Itoa(cfg.Severity.Mapping.Fatal)
 	case severity >= plog.SeverityNumberError:
@@ -39,7 +44,11 @@ func parseServiceNowSeverity(value pcommon.Value) (int, bool) {
 	case pcommon.ValueTypeInt:
 		severity = int(value.Int())
 	case pcommon.ValueTypeDouble:
-		severity = int(value.Double())
+		double := value.Double()
+		if math.IsNaN(double) || math.IsInf(double, 0) || double < 0 || double > 5 || math.Trunc(double) != double {
+			return 0, false
+		}
+		severity = int(double)
 	case pcommon.ValueTypeStr:
 		parsed, err := strconv.Atoi(strings.TrimSpace(value.Str()))
 		if err != nil {

@@ -1,0 +1,41 @@
+# End-user OCB distribution for the selected exception event recipe.
+dist:
+  name: otelcol-servicenow-event-management-trace-exception
+  description: OpenTelemetry Collector with ServiceNow Event Management trace exception recipe
+  output_path: ./otelcol-servicenow-event-management-trace-exception
+  version: 0.2.0
+
+exporters:
+  - gomod:
+      github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management v0.2.0
+    import: github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management/exporter/servicenoweventmanagementexporter
+
+processors:
+  - gomod:
+      github.com/open-telemetry/opentelemetry-collector-contrib/processor/filterprocessor v0.153.0
+  - gomod:
+      github.com/open-telemetry/opentelemetry-collector-contrib/processor/transformprocessor v0.153.0
+  - gomod:
+      go.opentelemetry.io/collector/processor/batchprocessor v0.153.0
+
+receivers:
+  - gomod:
+      go.opentelemetry.io/collector/receiver/otlpreceiver v0.153.0
+
+connectors:
+  - gomod:
+      github.com/open-telemetry/opentelemetry-collector-contrib/connector/exceptionsconnector v0.153.0
+
+extensions:
+  - gomod:
+      github.com/open-telemetry/opentelemetry-collector-contrib/extension/healthcheckextension v0.153.0
+  - gomod:
+      github.com/open-telemetry/opentelemetry-collector-contrib/extension/oauth2clientauthextension v0.153.0
+
+providers:
+  - gomod:
+      go.opentelemetry.io/collector/confmap/provider/envprovider v1.59.0
+  - gomod:
+      go.opentelemetry.io/collector/confmap/provider/fileprovider v1.59.0
+  - gomod:
+      go.opentelemetry.io/collector/confmap/provider/yamlprovider v1.59.0

@@ -26,6 +26,9 @@ const (
 	defaultAdditionalInfoMaxAttributes  = 128
 	defaultAdditionalInfoMaxValueLength = 4000
 	defaultMessageKeySeparator          = "|"
+	messageKeyFormatLegacy              = "legacy"
+	messageKeyFormatSHA256V1            = "sha256_v1"
+	messageKeySHA256V1Bytes             = 79
 )
 
 const (
@@ -79,6 +82,7 @@ type Config struct {
 }
 
 type MessageKeyConfig struct {
+	Format     string   `mapstructure:"format"`
 	Attributes []string `mapstructure:"attributes"`
 	Separator  string   `mapstructure:"separator"`
 }
@@ -165,6 +169,9 @@ func (cfg *Config) Validate() error {
 	if err := cfg.FieldLimits.Validate(); err != nil {
 		return err
 	}
+	if cfg.MessageKey.Format == messageKeyFormatSHA256V1 && cfg.FieldLimits.MessageKey < messageKeySHA256V1Bytes {
+		return fmt.Errorf("field_limits.message_key must be at least %d for message_key.format %q, got %d", messageKeySHA256V1Bytes, messageKeyFormatSHA256V1, cfg.FieldLimits.MessageKey)
+	}
 	if err := cfg.AdditionalInfo.Validate(); err != nil {
 		return err
 	}
@@ -211,6 +218,11 @@ func NewDefaultAdditionalInfoConfig() AdditionalInfoConfig {
 }
 
 func (cfg MessageKeyConfig) Validate() error {
+	switch cfg.Format {
+	case "", messageKeyFormatLegacy, messageKeyFormatSHA256V1:
+	default:
+		return fmt.Errorf("message_key.format must be %q or %q, got %q", messageKeyFormatLegacy, messageKeyFormatSHA256V1, cfg.Format)
+	}
 	if cfg.Separator != "" && strings.TrimSpace(cfg.Separator) == "" {
 		return errors.New("message_key.separator cannot be only whitespace")
 	}

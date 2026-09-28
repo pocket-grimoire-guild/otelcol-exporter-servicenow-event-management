@@ -66,6 +66,7 @@ func newMappingConfig(cfg *Config) mappingConfig {
 		EventClass: cfg.EventClass,
 		EventType:  cfg.EventType,
 		MessageKey: MessageKeyConfig{
+			Format:     cfg.MessageKey.Format,
 			Attributes: cloneStringSlice(cfg.MessageKey.Attributes),
 			Separator:  cfg.MessageKey.Separator,
 		},

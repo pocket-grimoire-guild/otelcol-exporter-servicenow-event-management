@@ -16,6 +16,8 @@ import (
 	"go.opentelemetry.io/collector/exporter"
 	"go.opentelemetry.io/collector/exporter/exporterhelper"
 	"go.opentelemetry.io/collector/pdata/plog"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 
 	"github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management/exporter/servicenoweventmanagementexporter/internal/metadata"
 )
@@ -45,6 +47,7 @@ func createDefaultConfig() component.Config {
 		QueueSettings:  configoptional.Some(exporterhelper.NewDefaultQueueConfig()),
 		BackOffConfig:  configretry.NewDefaultBackOffConfig(),
 		MessageKey: MessageKeyConfig{
+			Format:    messageKeyFormatLegacy,
 			Separator: defaultMessageKeySeparator,
 		},
 		Severity: SeverityConfig{
@@ -66,19 +69,33 @@ func createLogsExporter(
 	set exporter.Settings,
 	config component.Config,
 ) (exporter.Logs, error) {
+	return createLogsExporterWithClock(ctx, set, config, time.Now)
+}
+
+func createLogsExporterWithClock(
+	ctx context.Context,
+	set exporter.Settings,
+	config component.Config,
+	now func() time.Time,
+) (exporter.Logs, error) {
 	cfg := config.(*Config)
 	runtime, err := newRuntimeConfig(cfg)
 	if err != nil {
 		return nil, err
 	}
+	telemetryBuilder, err := metadata.NewTelemetryBuilder(set.TelemetrySettings)
+	if err != nil {
+		return nil, err
+	}
 	client := newServiceNowClientFromRuntime(runtime, set.TelemetrySettings)
 
-	return exporterhelper.NewLogs(
+	logsExporter, err := exporterhelper.NewLogs(
 		ctx,
 		set,
 		cfg,
 		func(ctx context.Context, logs plog.Logs) error {
-			payload, err := mapLogsToPayloadWithConfig(logs, runtime.mapping)
+			payload, diagnostics, err := mapLogsToPayloadWithDiagnostics(logs, runtime.mapping)
+			recordMappingDiagnostics(ctx, telemetryBuilder, diagnostics, set.ID.String())
 			if err != nil {
 				return consumererror.NewPermanent(err)
 			}
@@ -95,4 +112,29 @@ func createLogsExporter(
 		exporterhelper.WithStart(client.start),
 		exporterhelper.WithShutdown(client.shutdown),
 	)
+	if err != nil {
+		return nil, err
+	}
+	return newAdmissionLogsExporter(logsExporter, now), nil
+}
+
+func recordMappingDiagnostics(
+	ctx context.Context,
+	telemetryBuilder *metadata.TelemetryBuilder,
+	summary mappingDiagnosticSummary,
+	exporterID string,
+) {
+	for reason, count := range summary.counts {
+		if count <= 0 {
+			continue
+		}
+		telemetryBuilder.ExporterServicenowEventManagementMappingDiagnostics.Add(
+			ctx,
+			count,
+			metric.WithAttributes(
+				attribute.String("reason", mappingDiagnosticReasonNames[reason]),
+				attribute.String("exporter", exporterID),
+			),
+		)
+	}
 }

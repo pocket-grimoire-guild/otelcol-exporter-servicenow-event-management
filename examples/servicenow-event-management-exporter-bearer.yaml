@@ -20,7 +20,7 @@ processors:
     send_batch_max_size: 100
 
 exporters:
-  # Print received telemetry during local validation runs.
+  # Print received telemetry during local smoke runs.
   debug:
     verbosity: basic
 
@@ -79,7 +79,7 @@ exporters:
       max_interval: 30s
 
 extensions:
-  # Static bearer tokens are useful for short-lived validation. For long-lived
+  # Static bearer tokens are useful for short-lived smoke tests. For long-lived
   # deployments, prefer oauth2client so tokens are refreshed automatically.
   bearertokenauth/servicenow:
     token: ${env:SERVICENOW_BEARER_TOKEN}

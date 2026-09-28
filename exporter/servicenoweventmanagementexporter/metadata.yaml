@@ -1,12 +1,10 @@
 type: servicenow_event_management
 display_name: ServiceNow Event Management Exporter
-github_project: pocket-grimoire-guild/otelcol-exporter-servicenow-event-management
 
 status:
   class: exporter
   stability:
     development: [logs]
-  disable_codecov_badge: true
   codeowners:
     active: [traytonwhite]
 
@@ -19,3 +17,14 @@ tests:
     retry_on_failure:
       enabled: false
   expect_consumer_error: true
+
+telemetry:
+  metrics:
+    exporter_servicenow_event_management_mapping_diagnostics:
+      enabled: true
+      stability: development
+      description: Affected log-record occurrences per mapping attempt, by reason.
+      unit: "{record}"
+      sum:
+        value_type: int
+        monotonic: true

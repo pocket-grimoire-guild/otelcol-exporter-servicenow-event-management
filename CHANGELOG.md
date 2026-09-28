@@ -1,37 +1,20 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+All notable changes to this project are documented here. Before `v1.0.0`, minor releases may include breaking changes when called out.
 
-This project uses semantic versioning. Until `v1.0.0`, breaking changes may occur in minor releases, but they must be called out explicitly.
+## v0.2.0 — 2026-09-28 (development/public preview)
 
-## Unreleased
+- Add opt-in `sha256_v1` generated message keys with framed inputs and explicit-key overflow checks; `legacy` remains the default. Changing formats changes generated identities, so operators must plan migration, close or drain old-key alerts, and account for queued or replayed events. Fitting explicit keys are unchanged; oversized explicit keys under `sha256_v1` are permanent mapping errors.
+- Capture one admission timestamp for untimed records before queueing, preserving event time across retries and queue delay. This does not establish delivery or ServiceNow processing order.
+- Keep otherwise mappable records when exporter metadata alone exceeds the `additional_info` budget by using a bounded reduction envelope. The marker key `otel.servicenow.additional_info.metadata_reduced` is reserved; overflow can omit optional metadata and severity text.
+- Add bounded mapping diagnostics for affected record occurrences per attempt. Retries count again; these counters do not measure unique loss or confirm delivery.
+- Saturate representable numeric `Retry-After` values beyond `time.Duration` range at the maximum; Collector retry budgets still apply. Recognized interruptions while reading successful 2xx acknowledgments can retry a POST already processed by ServiceNow.
+- Treat JSON `null` values in recognized 2xx error fields as absent while preserving HTTP status and non-null response failure checks.
+- Reject fractional and non-finite severity doubles before conversion, then use the existing severity mapping and fallback.
+- Maintain optional upstream-to-logs recipes for metrics-derived breach events and selected trace exceptions, plus an optional native log-context overlay. The exporter still accepts logs only; these recipes do not define alert recovery or lifecycle behavior.
 
-### Added
+Compatibility and validation: this is a development/public-preview release. The module minimum remains Go `1.25.0`; Go `1.25.7` is the selected build toolchain following a metrics-distribution linker issue observed with `1.25.0`. Collector component/tool modules remain `v0.153.0`, with stable modules at `v1.59.0`. The tag workflow runs `make verify` on the tagged commit; historical ServiceNow evidence remains dated and does not establish current live-instance, alert-lifecycle, or production validation. See the [v0.2.0 release notes](docs/releases/v0.2.0.md).
 
-- OpenTelemetry Collector exporter `servicenow_event_management` for logs-to-ServiceNow Event Management JSON v2.
-- Direct instance mode for `/api/global/em/jsonv2`.
-- MID Web Server mode for `/api/mid/em/jsonv2`.
-- Collector HTTP auth extension support through `confighttp.ClientConfig`.
-- Basic, bearer token, OAuth2 client credentials, and MID API key examples.
-- Field limits, bounded and redacted `additional_info`, configurable severity mapping, and clear-event resolution-state support.
-- Collector Builder manifests for local development and released consumer builds.
-- Local verification with tests, race tests, lint, Collector Builder output, and example config validation.
-- Local verification now enforces Apache-2.0 SPDX headers and at least 90% exporter package test coverage.
-- ServiceNow documentation links now appear at exporter decision points, with the source map as the maintained bibliography.
-- Live validation evidence now covers direct instance JSON v2 with Basic, bearer token, and OAuth2 client credentials; direct instance Business Rules compatibility with Basic auth; and MID JSON v2 with MID API key, Basic, and mTLS.
-- Exporter-level retry coverage now verifies that `exporterhelper` resends after a retryable HTTP 429 response.
-- Optional `api: business_rules` compatibility mode for ServiceNow's documented `em_event.do?JSONv2&sysparm_action=insertMultiple` path, kept separate from `mode: instance|mid`.
+## v0.1.0 — published baseline
 
-### Changed
-
-- ServiceNow error responses are summarized without logging arbitrary response bodies.
-- Non-empty 2xx ServiceNow JSONv2 responses are now bounded and inspected so record-level or top-level failures are not silently accepted.
-- Release documentation now treats customer-like instance and batch-size validation as production/stable release gates, and requires direct mTLS evidence before that path is advertised as validated.
-- Direct instance mTLS is documented as attempted but not validated on the current PDI because ServiceNow-side CA publication failed and the endpoint did not request client certificates.
-- Direct instance mTLS documentation now calls out the ServiceNow `com.glide.auth.mutual` plugin, ADCv2 requirement, and CA publish status checks.
-- Direct instance mTLS documentation now clarifies that CA registration is documented through the `sys_ca_certificate` CA Certificate Chain form; API automation would use generic Table API plus Attachment API endpoints, not an exporter-specific or ServiceNow certificate-auth-specific CA upload endpoint.
-- Direct instance mTLS documentation now summarizes the PDI limitation without preserving detailed lab transcripts in public docs.
-
-## v0.1.0 - Planned
-
-Initial public preview release after the repository is published at its durable module path.
+The published v0.1.0 release established the logs-only exporter, endpoint and authentication examples, field mapping, bounded `additional_info`, and historical PDI/MID validation paths. See [README.md](README.md) and [docs/compatibility.md](docs/compatibility.md) for current scope and evidence.

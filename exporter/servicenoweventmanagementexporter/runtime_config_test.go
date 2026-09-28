@@ -48,3 +48,19 @@ func TestNewRuntimeConfigCopiesMappingSlices(t *testing.T) {
 	require.Equal(t, []string{"drop.*"}, runtime.mapping.AdditionalInfo.ExcludeAttributes)
 	require.Equal(t, []string{"secret.*"}, runtime.mapping.AdditionalInfo.RedactAttributes)
 }
+
+func TestRuntimeConfigSnapshotsMessageKeyFormatAndAttributes(t *testing.T) {
+	cfg := createDefaultConfig().(*Config)
+	cfg.ClientConfig.Endpoint = "https://example.service-now.com"
+	cfg.MessageKey.Format = messageKeyFormatSHA256V1
+	cfg.MessageKey.Attributes = []string{"service.name", "host.name"}
+
+	runtime, err := newRuntimeConfig(cfg)
+	require.NoError(t, err)
+
+	cfg.MessageKey.Format = messageKeyFormatLegacy
+	cfg.MessageKey.Attributes[0] = "event.name"
+
+	require.Equal(t, messageKeyFormatSHA256V1, runtime.mapping.MessageKey.Format)
+	require.Equal(t, []string{"service.name", "host.name"}, runtime.mapping.MessageKey.Attributes)
+}

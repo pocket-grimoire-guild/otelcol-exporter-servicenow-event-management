@@ -20,4 +20,4 @@ while IFS= read -r file; do
     cat "${file}"
   } >"${tmp_file}"
   mv "${tmp_file}" "${file}"
-done < <(git ls-files '*.go')
+done < <(git ls-files --cached --others --exclude-standard -- '*.go')

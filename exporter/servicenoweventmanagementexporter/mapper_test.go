@@ -120,6 +120,7 @@ func TestMapLogsToRecordsFallsBackWhenConfiguredMessageKeyAttributesAreMissing(t
 
 func TestMapLogsToRecordsAppliesServiceNowFieldLimits(t *testing.T) {
 	cfg := createDefaultConfig().(*Config)
+	cfg.MessageKey.Format = messageKeyFormatLegacy
 	cfg.FieldLimits.EventClass = 5
 	cfg.FieldLimits.MessageKey = 8
 	cfg.FieldLimits.Description = 12

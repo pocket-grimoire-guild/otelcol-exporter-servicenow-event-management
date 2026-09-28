@@ -24,26 +24,26 @@ Apply these through the normal ServiceNow/MID Server property management path fo
 
 ## Public Validation
 
-This path has been live-validated against a ServiceNow PDI with a local Linux MID runtime. The validation used a dedicated test MID Server record and the three properties above.
+This path has been validated against a ServiceNow PDI with a local Linux MID runtime. The validation used a dedicated test MID Server record and the three properties above.
 
 The proof compared normal MID JSON v2 behavior with Business Rules-compatible forwarding, then confirmed the expected Business Rules side effect through ServiceNow read-back. Temporary validation-only Business Rules and MID property changes were removed afterward and normal MID JSON v2 behavior was revalidated. See [May 2026 PDI validation evidence](validation-evidence/2026-05-pdi-validation.md#validated-paths).
 
 ## Validation Checklist
 
-1. Prove normal MID JSON v2 first.
+1. Prove normal MID JSON v2 first with `SERVICENOW_MODE=mid` and `SERVICENOW_API=jsonv2`.
 2. Configure the MID forwarding properties above.
-3. POST a representative JSON v2 payload through the MID listener after enabling Business Rules intent:
+3. Run the direct smoke through the MID listener with Business Rules intent:
 
    ```bash
-   curl --fail-with-body --show-error --silent \
-     --request POST "${SERVICENOW_MID_URL%/}/api/mid/em/jsonv2" \
-     --header "Authorization: key ${SERVICENOW_MID_API_KEY}" \
-     --header 'Accept: application/json' \
-     --header 'Content-Type: application/json' \
-     --data '{"records":[{"source":"opentelemetry-validation","event_class":"otel-servicenow-event-management-exporter","node":"otel-local","resource":"manual-validation","metric_name":"manual_validation","type":"collector_exporter","message_key":"otel-servicenow-event-management-exporter:manual-validation","severity":"5","description":"OpenTelemetry ServiceNow Event Management exporter manual validation","additional_info":"{\"otel.signal\":\"logs\"}"}]}'
+   SERVICENOW_SEND=1 \
+   SERVICENOW_MODE=mid \
+   SERVICENOW_API=business_rules \
+   SERVICENOW_INSTANCE_URL=https://mid-host.example.net:8443 \
+   SERVICENOW_MID_API_KEY=... \
+   make smoke-servicenow-jsonv2
    ```
 
-4. Run Collector-backed validation against the same MID listener.
+4. Run a Collector-backed rich smoke against the same MID listener.
 5. Read back `em_event` rows by run id and verify the customer-specific Business Rules side effect that required this compatibility path.
 6. Record the MID properties, commands, HTTP status, read-back evidence, and Business Rules side effect in the validation evidence.
 

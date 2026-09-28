@@ -26,7 +26,7 @@ Do not include credentials, authorization headers, bearer tokens, OAuth secrets,
 
 ## Known Support Boundaries
 
-- Metrics and traces are out of scope until explicit Event Management semantics are designed.
+- Native metrics and traces export are unsupported; the exporter registers logs only. The maintained [metrics-to-logs recipe](examples/servicenow-event-management-metrics-event-oauth.yaml) and [trace exception recipe](examples/servicenow-event-management-trace-exception-oauth.yaml) are supported examples of upstream conversion to logs. Their local fake-backed gates do not add native signal support or establish ServiceNow alert lifecycle behavior.
 - MID mode has been validated against a local Linux MID runtime connected to a PDI with API key, Basic auth, and mTLS, but customer MID topology and certificate management still need environment-specific validation.
 - Direct instance mTLS was attempted on the PDI but not validated because ServiceNow-side CA publication failed and the endpoint did not request client certificates.
 - Real alert correlation and CI binding depend on ServiceNow-side CMDB content, event rules, and alert rules.

@@ -20,7 +20,7 @@ This project is a standalone Collector exporter. It is shaped to be friendly to 
 - Get ServiceNow product/API review for endpoint choice, field mapping, clear-event behavior, `additional_info`, role expectations, and validation claims.
 - Validate against a customer-like ServiceNow dev or sub-production instance, not only a PDI.
 - Decide the standalone support model: named maintainers, security escalation path, release cadence, supported Collector version matrix, ServiceNow API compatibility promise, and config deprecation policy.
-- Confirm the target Go version policy against the supported Collector version before the first public tag or contrib proposal.
+- Keep the documented Go minimum and selected build toolchain aligned with the supported Collector version when updating either compatibility baseline or proposing contrib support.
 
 ## Required During A Contrib Port
 

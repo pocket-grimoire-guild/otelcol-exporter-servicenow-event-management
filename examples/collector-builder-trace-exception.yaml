@@ -7,8 +7,6 @@ dist:
 
 exporters:
   - gomod:
-      # Intended v0.2.0 pin. Until that version is available to consumers, use
-      # make test-trace-exception to build this recipe from the local checkout.
       github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management v0.2.0
     import: github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management/exporter/servicenoweventmanagementexporter
 

@@ -1,61 +1,25 @@
 # Release Process
 
-This project is intended to be consumed as a Collector Builder component pinned by Go module tag.
+This repository has a published `v0.1.0` baseline. The prepared `v0.2.0` release is a development/public preview, not a production-ready or stable release. Its exact notes are maintained in [docs/releases/v0.2.0.md](releases/v0.2.0.md).
 
-## Before A Release
+## Prepare v0.2.0
 
-1. Confirm the canonical repository and module paths are final before selecting the release version.
-2. Confirm `go.mod`, `builder-config.yaml`, examples, registry metadata, generated metadata, verification checks, and docs all use that final module path.
-3. Confirm code-level publication blockers remain closed, including bounded 2xx JSONv2 response parsing so per-record ServiceNow failures are not silently accepted.
-4. Confirm the supported Collector and Go version policy. Either update to the intended current Collector baseline or document the pinned baseline in release notes and support docs.
-5. Confirm the standalone support model: named maintainers, security reporting path, release cadence, ServiceNow API compatibility expectations, and config deprecation policy.
-6. Run:
+Before tagging, keep the versioned release notes, `CHANGELOG.md`, README, compatibility matrix, security policy, registry metadata, and all Collector Builder manifests consistent at `v0.2.0`. Keep `go.mod` at its declared Go `1.25.0` minimum; CI and the release workflow select Go `1.25.7` because the metrics distribution hit an OTTL linker issue with `1.25.0`. Collector component and tool modules remain `v0.153.0`, and stable modules remain `v1.59.0`.
 
-   ```bash
-   make verify
-   ```
+The existing `ci` workflow installs the pinned validation tools and runs `make verify`. The tag workflow calls that same workflow from the tagged commit. This gate uses local tests and fakes; it does not repeat historical PDI or MID validation. The dated ServiceNow evidence and remaining gaps are listed in [docs/compatibility.md](compatibility.md) and called out in the release notes.
 
-7. Record the current compatibility matrix in [docs/compatibility.md](compatibility.md).
-8. For any release described as production-ready or stable, complete and record all release validation gates:
+## Publish the v0.2.0 Preview
 
-   - Instance JSON v2 ingestion through a customer-like development or sub-production instance, not only a PDI.
-   - Direct instance mTLS/certificate-based authentication if release notes claim that path is validated.
-   - Tested maximum batch size and observed ServiceNow response shape.
+1. Open a protected pull request with the complete release preparation. Wait for its required reviews and checks, then merge it to `main`. The release workflow must be present on the merged commit.
+2. After the merge, choose the validated commit on `main` and create and push the exact `v0.2.0` tag at that commit. Do not create a GitHub release manually; pushing the tag starts `.github/workflows/release.yml`.
+3. The workflow runs the reusable `ci` workflow first. Its publish job runs only after `make verify` succeeds. The job checks that the repository is the approved public repository, the checked-out commit and local and remote tag all resolve to the same SHA, that the tagged commit is an ancestor of `origin/main`, and that the maintained release notes are present.
+4. The publish job uses the workflow's `GITHUB_TOKEN` with `contents: write` only for the release operation. Checkout credentials are not persisted. The workflow creates a prerelease titled `v0.2.0 — development/public preview`, marks it as not the latest release, and appends the full source commit SHA to a temporary copy of the maintained notes. It does not move or delete tags, edit releases, or use a personal access token.
+5. Confirm the Actions run and published release before announcing the Go module version to consumers. The README's tagged builder manifest is usable once `v0.2.0` is available from the public Go module proxy.
 
-   If any gate is still open, keep the release language at development/public-preview stability and list the gap in the GitHub release notes.
+The workflow is intentionally limited to `v0.2.0`. It treats one existing non-draft prerelease as complete only when its tag and exact `Source commit: <SHA>` body line match the pushed commit. A draft, full release, mismatched SHA, duplicate release, API-listing failure, or any failed guard stops publication. If verification, permissions, or a guard fails, report the failed run and resolve it through a reviewed release plan; do not bypass the gate, publish manually, or move/delete the tag.
 
-9. Select the release version and date, then update [CHANGELOG.md](../CHANGELOG.md) and versioned manifest examples.
-10. After release review, create and push the selected tag:
+## Preview Scope
 
-   ```bash
-   git tag "$RELEASE_VERSION"
-   git push origin "$RELEASE_VERSION"
-   ```
+The preview supports the logs signal only. Metrics-derived and selected trace-exception recipes convert chosen upstream telemetry to logs; the optional log-context overlay is also upstream processing. None adds native metrics or traces export or defines alert recovery/lifecycle behavior. Historical PDI evidence does not establish current customer-like instance behavior, alert lifecycle, or production readiness. Customer-like non-PDI validation, tested maximum batch/request sizes, and direct instance mTLS remain open.
 
-11. Create a GitHub release with:
-
-   - Collector Builder manifest snippet.
-   - Supported Collector version.
-   - Supported endpoint modes, API flavors, and auth paths.
-   - Validation status, including any incomplete release validation gates.
-
-## Release Checklist
-
-- `make verify` passes.
-- `go test -race ./...` passes.
-- Collector Builder build succeeds.
-- Checked-in examples validate.
-- 2xx JSONv2 response bodies with per-record failure statuses are handled safely and covered by tests.
-- Changelog has date and version.
-- README Collector Builder snippet uses the release tag.
-- `docs/compatibility.md` is current.
-- Supported Collector and Go versions are explicit.
-- Security reporting and maintainer/support expectations are explicit.
-- Production/stable releases have customer-like instance and batch-size validation evidence, plus direct mTLS evidence if that path is advertised as validated.
-- Any breaking config changes are highlighted.
-
-## Versioning
-
-- Patch releases: bug fixes, docs, tests, compatibility updates.
-- Minor releases before `v1.0.0`: new config or behavior, possible breaking changes with explicit changelog notes.
-- `v1.0.0`: only after customer-like instance validation, batch-size validation, and sustained external usage.
+For future releases, update the version-specific workflow guard, manifest pins, and maintained release notes in a reviewed pull request before tagging. Keep the Go module minimum distinct from the selected build patch, preserve dated validation evidence, and document compatibility or config changes in the changelog.

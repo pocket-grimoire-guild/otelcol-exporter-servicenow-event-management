@@ -4,12 +4,12 @@ dist:
   name: otelcol-servicenow-event-management-metrics-event
   description: OpenTelemetry Collector with ServiceNow Event Management metrics-derived event example
   output_path: ./otelcol-servicenow-event-management-metrics-event
-  version: 0.1.0
+  version: 0.2.0
 
 exporters:
   # ServiceNow Event Management exporter plus debug output for local inspection.
   - gomod:
-      github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management v0.1.0
+      github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management v0.2.0
     import: github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management/exporter/servicenoweventmanagementexporter
   - gomod:
       go.opentelemetry.io/collector/exporter/debugexporter v0.153.0

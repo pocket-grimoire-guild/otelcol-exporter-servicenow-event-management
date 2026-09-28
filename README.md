@@ -44,6 +44,7 @@ The optional [trace exception recipe](examples/servicenow-event-management-trace
 From a source checkout, install the pinned Collector tools and build the local distribution:
 
 ```bash
+export GOTOOLCHAIN=go1.25.7
 make install-tools
 make build-collector
 ```
@@ -59,11 +60,10 @@ export SERVICENOW_PASSWORD='...'
   --config examples/servicenow-event-management-exporter.yaml
 ```
 
-After a release tag is published, consumers can build from the tagged OCB manifest:
+After v0.2.0 is available from the public Go module proxy, consumers can build from its tagged OCB manifest:
 
 ```bash
-cp examples/collector-builder.yaml builder-config.yaml
-builder --config builder-config.yaml
+.tools/bin/builder --config examples/collector-builder.yaml
 ./otelcol-servicenow-event-management/otelcol-servicenow-event-management --config examples/servicenow-event-management-exporter.yaml
 ```
 
@@ -100,12 +100,12 @@ JSON
 
 ## Collector Builder Manifest
 
-For a released build, use a module version available from your Go module proxy. The version below is an example; replace it with the released version you intend to build:
+For a released build, use a module version available from your Go module proxy. The v0.2.0 manifest is:
 
 ```yaml
 exporters:
   - gomod:
-      github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management v0.1.0
+      github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management v0.2.0
     import: github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management/exporter/servicenoweventmanagementexporter
 ```
 
@@ -201,9 +201,11 @@ Read [docs/production-hardening.md](docs/production-hardening.md) before using t
 - Use `additional_info.include_attributes` when input logs may carry sensitive application data, and include exact custom alert field names when ServiceNow should promote Additional information keys into alert fields.
 - Use [docs/troubleshooting.md](docs/troubleshooting.md) when a live smoke or Collector-backed run fails.
 
-## Current Validation Status
+## Validation Evidence
 
-Validated so far:
+The checks and ServiceNow paths below have recorded evidence from earlier development runs. The tag workflow reruns `make verify` on the tagged commit; these results do not establish current live-instance behavior. See [docs/compatibility.md](docs/compatibility.md) for dated evidence and open gaps.
+
+Recorded checks and historical ServiceNow paths:
 
 - Local unit, race, lint, OCB build, and example config checks.
 - ServiceNow PDI direct instance JSON v2 with Basic auth, bearer token auth, and OAuth2 client credentials.
@@ -211,7 +213,7 @@ Validated so far:
 - ServiceNow PDI MID JSON v2 through a local Linux MID runtime with MID API key, Basic auth, and mTLS.
 - ServiceNow PDI MID Business Rules compatibility forwarding through a local Linux MID runtime configured with the upstream `insertMultiple` endpoint.
 
-Not yet validated:
+Open ServiceNow validation gaps:
 
 - A non-PDI/customer-like ServiceNow development instance.
 - Direct instance mTLS/certificate-based authentication. A PDI attempt reached ServiceNow's CA upload path, but the instance failed to publish CA trust material and did not request client certificates.

@@ -1,17 +1,17 @@
 # Compatibility And Validation Matrix
 
-This matrix records what has actually been validated. Keep it conservative: a row means the path was exercised end-to-end and evidence was recorded.
+This matrix separates compatibility baselines from paths exercised. Validation rows link recorded evidence; a pinned baseline is not itself a validation claim.
 
 ## Collector And Go
 
 | Area | Version | Status |
 | --- | --- | --- |
-| Go | `1.25.0` module baseline; `1.25.7` CI/build toolchain | Full `make verify` passes with `1.25.7`; exporter tests and the default Collector also pass with `1.25.0` |
-| OpenTelemetry Collector | `v0.153.0` component/tool modules and `v1.59.0` stable modules | Default, metrics, and trace distributions build; endpoint/auth configs and maintained integration gates pass |
+| Go | `1.25.0` module minimum; `1.25.7` selected CI/build toolchain | Earlier local validation on 2026-09-28 passed `make verify` with Go `1.25.7`; the tag workflow reruns it on the tagged commit. The module minimum remains `1.25.0`. |
+| OpenTelemetry Collector | `v0.153.0` component/tool modules and `v1.59.0` stable modules | Pinned compatibility baseline for this preview; dated build and integration results are described with their evidence below. |
 | Collector tools | `builder` and `mdatagen` from Collector `v0.153.0` | Installed by `make install-tools` and enforced by `make verify` |
 | Component stability | development, logs only | Intentional |
 
-Go `1.25.0` hit an OTTL linker failure in the metrics distribution. The maintained distributions and full gate pass with Go `1.25.7`, which CI selects for builds. An [upstream report](https://github.com/open-telemetry/opentelemetry-collector-contrib/issues/45909#issuecomment-3855996013) records the same linker failure and patch resolution.
+During 2026 build validation, Go `1.25.0` hit an OTTL linker failure in the metrics distribution. CI selects Go `1.25.7` for builds following the patch-level resolution documented in an [upstream report](https://github.com/open-telemetry/opentelemetry-collector-contrib/issues/45909#issuecomment-3855996013). Earlier local validation on 2026-09-28 passed `make verify` on Go `1.25.7`; the tag workflow reruns that gate on the tagged commit. This toolchain evidence is separate from the dated historical ServiceNow validation rows below.
 
 ## ServiceNow
 
@@ -55,12 +55,12 @@ These rows are not validation claims. They record tested paths that did not comp
 | --- | --- | --- | --- | --- |
 | ServiceNow PDI | instance JSON v2 | certificate-based auth / mTLS | Attempted but not validated. The PDI did not complete ServiceNow-side CA trust publication, and the public endpoint did not request a client certificate. This is consistent with ServiceNow's ADCv2/front-door requirements and public PDI reports cited in the source map. | [May 2026 blocked evidence](validation-evidence/2026-05-pdi-validation.md#blocked-or-negative-evidence) |
 
-## Before A Public Release
+## Before Stable Or Production-Ready Claims
 
 - Record the ServiceNow family for future real-instance tests.
 - Validate at least one non-PDI or customer-like development instance.
 - Record tested maximum batch size and observed response shapes.
 
-Do not describe the exporter as production-ready or stable until those validation rows are complete. A release with any open row must be labeled as development/public preview and must call out the exact gap in the release notes.
+These gaps do not block a development/public-preview release. Keep the preview label, list the open gaps in its release notes, and do not describe the exporter as production-ready or stable until the required validation rows are complete.
 
 See [docs/servicenow-real-instance-testing.md](servicenow-real-instance-testing.md) for the validation ladder and [docs/validation-evidence](validation-evidence/README.md) for the evidence template and current archive.

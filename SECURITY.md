@@ -2,12 +2,13 @@
 
 ## Supported Versions
 
-Security fixes are provided for the latest minor release line once public releases begin. Before `v1.0.0`, users should expect to upgrade to the latest `v0.x` release for fixes.
+Security fixes target the latest public minor release line. Before `v1.0.0`, users should upgrade to the latest public `v0.x` release for fixes; older minor lines do not receive backports.
 
 | Version | Supported |
 | --- | --- |
 | `main` | development only |
-| `v0.1.x` | planned |
+| `v0.2.x` | supported (development/public preview) |
+| `v0.1.x` | not supported |
 
 ## Reporting A Vulnerability
 

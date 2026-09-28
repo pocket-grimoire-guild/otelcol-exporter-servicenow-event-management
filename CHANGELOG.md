@@ -2,30 +2,19 @@
 
 All notable changes to this project are documented here. Before `v1.0.0`, minor releases may include breaking changes when called out.
 
-## Unreleased — development/public preview
+## v0.2.0 — 2026-09-28 (development/public preview)
 
-### Added
+- Add opt-in `sha256_v1` generated message keys with framed inputs and explicit-key overflow checks; `legacy` remains the default. Changing formats changes generated identities, so operators must plan migration, close or drain old-key alerts, and account for queued or replayed events. Fitting explicit keys are unchanged; oversized explicit keys under `sha256_v1` are permanent mapping errors.
+- Capture one admission timestamp for untimed records before queueing, preserving event time across retries and queue delay. This does not establish delivery or ServiceNow processing order.
+- Keep otherwise mappable records when exporter metadata alone exceeds the `additional_info` budget by using a bounded reduction envelope. The marker key `otel.servicenow.additional_info.metadata_reduced` is reserved; overflow can omit optional metadata and severity text.
+- Add bounded mapping diagnostics for affected record occurrences per attempt. Retries count again; these counters do not measure unique loss or confirm delivery.
+- Saturate representable numeric `Retry-After` values beyond `time.Duration` range at the maximum; Collector retry budgets still apply. Recognized interruptions while reading successful 2xx acknowledgments can retry a POST already processed by ServiceNow.
+- Treat JSON `null` values in recognized 2xx error fields as absent while preserving HTTP status and non-null response failure checks.
+- Reject fractional and non-finite severity doubles before conversion, then use the existing severity mapping and fallback.
+- Maintain optional upstream-to-logs recipes for metrics-derived breach events and selected trace exceptions, plus an optional native log-context overlay. The exporter still accepts logs only; these recipes do not define alert recovery or lifecycle behavior.
 
-- Optional `sha256_v1` generated message keys with framed inputs and explicit-key overflow checks. The existing `legacy` format remains the default.
-- A bounded mapping-diagnostics counter with six fixed reasons and low-cardinality attributes.
-- Maintained fake-backed integration gates for the metrics-to-logs and selected trace-exception recipes, plus an optional native log-context overlay.
+Compatibility and validation: this is a development/public-preview release. The module minimum remains Go `1.25.0`; Go `1.25.7` is the selected build toolchain following a metrics-distribution linker issue observed with `1.25.0`. Collector component/tool modules remain `v0.153.0`, with stable modules at `v1.59.0`. The tag workflow runs `make verify` on the tagged commit; historical ServiceNow evidence remains dated and does not establish current live-instance, alert-lifecycle, or production validation. See the [v0.2.0 release notes](docs/releases/v0.2.0.md).
 
-### Changed
+## v0.1.0 — published baseline
 
-- Fractional and non-finite severity doubles are rejected before conversion and use the existing mapping/default fallback.
-- Untimed log records capture one admission timestamp before queueing, so retries and queue delay keep a stable event time.
-- When required exporter metadata exceeds the `additional_info` byte budget, otherwise mappable records use a bounded metadata-reduction envelope. The reserved marker key is `otel.servicenow.additional_info.metadata_reduced`.
-- `additional_info` sizing now avoids repeated whole-map serialization while preserving byte-for-byte packing output.
-- Recognized interruptions while reading a successful 2xx acknowledgment can enter Collector retry handling when the bounded read was incomplete. A retry can replay a POST whose response was interrupted.
-- Representable numeric `Retry-After` values beyond `time.Duration` range saturate at the representable maximum; Collector retry budgets still apply.
-
-### Compatibility and migration
-
-- `sha256_v1` changes generated identities. Keep `legacy` during migration planning; close or drain old-key alerts and account for queued or replayed events before changing formats. Fitting explicit keys remain unchanged; an oversized explicit key is a permanent mapping error.
-- Diagnostics count affected record occurrences per mapping attempt. Each fixed reason is counted at most once per record and attempt; retries count again. This is not a unique-loss count or a delivery acknowledgment.
-- Rename producer use of `otel.servicenow.additional_info.metadata_reduced` because the key is reserved. Optional metadata and original severity text can be omitted on the overflow path.
-- Metrics and traces remain unsupported as native exporter signals. The maintained recipes convert selected upstream telemetry into logs before this exporter receives it; their local fake-backed gates do not prove ServiceNow alert lifecycle behavior.
-
-## v0.1.0 source baseline
-
-The existing baseline documents the logs-only exporter, endpoint and authentication examples, field mapping, bounded `additional_info`, and historical PDI/MID validation paths. See [README.md](README.md) and [docs/compatibility.md](docs/compatibility.md) for current scope and evidence.
+The published v0.1.0 release established the logs-only exporter, endpoint and authentication examples, field mapping, bounded `additional_info`, and historical PDI/MID validation paths. See [README.md](README.md) and [docs/compatibility.md](docs/compatibility.md) for current scope and evidence.

@@ -1,7 +1,5 @@
-# Draft OpenTelemetry Registry entry.
-# Copy this into the OpenTelemetry website repository under data/registry
-# after the repository URL and first public tag exist. The current registry
-# instructions say Collector exporters should use registryType: exporter.
+# Proposed OpenTelemetry Registry entry. Submit or update it after v0.2.0 is
+# publicly available. Collector exporters use registryType: exporter.
 
 title: ServiceNow Event Management Collector Exporter
 registryType: exporter
@@ -25,5 +23,5 @@ install:
   collector:
     exporters:
       - gomod:
-          github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management v0.1.0
+          github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management v0.2.0
         import: github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management/exporter/servicenoweventmanagementexporter

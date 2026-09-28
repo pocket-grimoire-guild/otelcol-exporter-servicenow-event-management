@@ -14,14 +14,14 @@ processors:
     limit_mib: 256
     spike_limit_mib: 64
   # Cap each batch at 100 log records so each ServiceNow JSON v2 request stays
-  # within the conservative payload size used by validation runs.
+  # within the conservative payload size used by the smoke and PDI tests.
   batch:
     timeout: 10s
     send_batch_size: 100
     send_batch_max_size: 100
 
 exporters:
-  # Keep debug enabled for local validation so the Collector shows what it
+  # Keep debug enabled for local smoke runs so the Collector shows what it
   # received without affecting ServiceNow delivery.
   debug:
     verbosity: basic
@@ -35,8 +35,8 @@ exporters:
       authenticator: basicauth/servicenow
     source: opentelemetry
     type: otel-log
-    # Prefer a source-provided message_key when present. This fallback uses
-    # common OTel identity fields and avoids accidental alert de-dup collisions.
+    # This keeps the legacy joined-key format. Delimiter values and truncation
+    # can still collide; see the component README for the sha256_v1 opt-in.
     message_key:
       attributes: [service.name, host.name, event.name]
       separator: "|"

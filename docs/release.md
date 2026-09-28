@@ -2,9 +2,9 @@
 
 This project is intended to be consumed as a Collector Builder component pinned by Go module tag.
 
-## Before The First Release
+## Before A Release
 
-1. Decide and publish the canonical repository path. Do not publish the first public tag under a module path or repository name that is expected to change.
+1. Confirm the canonical repository and module paths are final before selecting the release version.
 2. Confirm `go.mod`, `builder-config.yaml`, examples, registry metadata, generated metadata, verification checks, and docs all use that final module path.
 3. Confirm code-level publication blockers remain closed, including bounded 2xx JSONv2 response parsing so per-record ServiceNow failures are not silently accepted.
 4. Confirm the supported Collector and Go version policy. Either update to the intended current Collector baseline or document the pinned baseline in release notes and support docs.
@@ -24,12 +24,12 @@ This project is intended to be consumed as a Collector Builder component pinned 
 
    If any gate is still open, keep the release language at development/public-preview stability and list the gap in the GitHub release notes.
 
-9. Update [CHANGELOG.md](../CHANGELOG.md): move `Unreleased` content to `v0.1.0`.
-10. Tag and push:
+9. Select the release version and date, then update [CHANGELOG.md](../CHANGELOG.md) and versioned manifest examples.
+10. After release review, create and push the selected tag:
 
    ```bash
-   git tag v0.1.0
-   git push origin v0.1.0
+   git tag "$RELEASE_VERSION"
+   git push origin "$RELEASE_VERSION"
    ```
 
 11. Create a GitHub release with:

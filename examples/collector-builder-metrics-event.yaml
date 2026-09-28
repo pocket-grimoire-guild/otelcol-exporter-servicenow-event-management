@@ -1,5 +1,5 @@
 dist:
-  # End-user Collector Builder distribution for the metrics-derived event example. It adds
+  # End-user OCB distribution for the metrics-derived event example. It adds
   # the processors and connector needed to turn metric breaches into logs.
   name: otelcol-servicenow-event-management-metrics-event
   description: OpenTelemetry Collector with ServiceNow Event Management metrics-derived event example
@@ -36,7 +36,7 @@ connectors:
 
 extensions:
   # OAuth client credentials authenticate ServiceNow requests; health_check
-  # gives local validation a readiness probe.
+  # gives smoke scripts a readiness probe.
   - gomod:
       github.com/open-telemetry/opentelemetry-collector-contrib/extension/healthcheckextension v0.153.0
   - gomod:

@@ -5,9 +5,11 @@ receivers:
         endpoint: 0.0.0.0:4318
 
 processors:
-  # Keep only the metric datapoints that should become ServiceNow events.
-  # This example treats demo.checkout.error_rate values above 90 as threshold
-  # breaches. Values at or below 90 are dropped before they can create events.
+  # Recipe contract: demo.checkout.error_rate double-valued gauge datapoints
+  # (OTLP JSON asDouble),
+  # with service.name and host.name on the resource and route on each point.
+  # Only values strictly above 90 become breach events; the equal boundary and
+  # values below it are dropped before metricsaslogs can create log records.
   filter/metric_threshold:
     error_mode: propagate
     metric_conditions:
@@ -17,7 +19,10 @@ processors:
   # metricsaslogs turns each surviving metric datapoint into a log record.
   # This transform then makes the log explicit ServiceNow Event Management
   # input by setting source, node, metric_name, severity, description, and a
-  # stable message_key. The exporter still receives logs, not raw metrics.
+  # stable message_key. Its identity uses the run ID and those three dimensions,
+  # so a changed value with fixed dimensions keeps the same key. The exporter
+  # still receives logs, not raw metrics. This recipe emits breaches only; it
+  # does not define recovery, missing-data, or clear-event behavior.
   transform/servicenow_metric_event:
     error_mode: propagate
     log_statements:

@@ -13,9 +13,9 @@ make verify
 make build-collector
 ```
 
-`make install-tools` installs the pinned OpenTelemetry Collector `builder` and `mdatagen` binaries into `.tools/bin`; the verification targets put that directory first on `PATH`.
+`make install-tools` installs the pinned Collector Builder and `mdatagen` tools into `.tools/bin`. `make verify` runs the full local gate: YAML and shell validation, shellcheck, Markdown links, fenced YAML validation, generated metadata checks, tests, race tests, vet, lint, Collector Builder output, example config validation, and maintained local-fake integration gates.
 
-`make verify` runs the full local gate: YAML and shell validation, shellcheck, markdown link checks, fenced YAML validation, generated metadata checks, tests, race tests, vet, lint, Collector builder, and example config validation.
+The `go.mod` Go 1.25.0 directive is the module minimum; CI uses Go 1.25.7 for builds and verification. Collector OTTL generic linking failed in the Go 1.25.0 build, and an upstream Collector Contrib report documents a related failure resolved with Go 1.25.7 ([issue #45909](https://github.com/open-telemetry/opentelemetry-collector-contrib/issues/45909#issuecomment-3855996013)). For a reproducible local gate, run `GOTOOLCHAIN=go1.25.7 make install-tools verify`.
 
 The verification gate enforces at least 90% statement coverage for `exporter/servicenoweventmanagementexporter` and requires standalone copyright plus Apache-2.0 SPDX headers on checked-in Go files.
 

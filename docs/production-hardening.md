@@ -20,9 +20,19 @@ servicenow.severity
 
 Clear events should use the same `servicenow.message_key` as the event they close, severity `0`, and either explicit `servicenow.resolution_state=Closing` or the default clear-resolution behavior.
 
+See the [Field Mapping lifecycle illustration](product-specs/servicenow-event-management-exporter.md#field-mapping) for optional producer labels and ownership boundaries.
+
 ## Data Safety
 
 Use `additional_info.include_attributes` when sending logs from arbitrary applications. Without an allowlist, the exporter still redacts common secret names and enforces byte limits, but application logs can contain business data that cannot be safely inferred from attribute names.
+
+These include, exclude, and redact patterns apply only to top-level resource and log attributes copied into `additional_info`; they do not sanitize the whole event. A matching redaction replaces the complete copied attribute value, so an allowed map or slice can still carry sensitive nested values unless its parent attribute is redacted. Patterns such as `*.body` match attribute names, not `LogRecord.Body`.
+
+Description mapping checks `servicenow.description`, then `event.description`, the log body, and severity text. Each attribute lookup prefers a present log attribute over the same-name resource attribute, so a resource `servicenow.description` can be selected before a log `event.description`. Other mapped event fields are outside these filters. Original `otel.severity_text` may also be retained in `additional_info` when present and when metadata budgeting allows it.
+
+Review content at its source and after upstream processing, then prefer a minimized event summary containing only approved incident detail over forwarding arbitrary log content. OpenTelemetry's [sensitive-data guidance](https://opentelemetry.io/docs/security/handling-sensitive-data/) recommends context-specific data minimization and describes processors that can modify telemetry. Use an upstream processor only when it is included in the deployed Collector distribution; this repository's local builder includes neither the transform nor redaction processor. See [Additional Info configuration](configuration.md#additional-info) for exact pattern behavior.
+
+Treat `servicenow.message_key`, `servicenow.severity` (or the configured `severity.from_attribute`), and `servicenow.resolution_state` as trusted event-authoring inputs, even though `servicenow.*` attributes are omitted from `additional_info`. They can be supplied at either resource or log scope; for a matching key, a present log attribute takes precedence over the resource value. A non-empty message-key override sets event identity; otherwise configured message-key attributes or mapped default fields supply it. An invalid log severity override falls through to the OTel severity mapping and configured default rather than the resource override. For a Clear event, an absent or invalid resolution-state override can select the configured clear state (`Closing` by default). Review and remove or overwrite unapproved controls at both scopes before trusted event generation; removing only a log override can expose a resource-level value. Preserve approved stable identity and clear-event controls. See [the mapping and severity reference](../exporter/servicenoweventmanagementexporter/README.md#default-log-to-event-mapping) for mapping details.
 
 ServiceNow can promote named Additional information values into custom alert fields when the key matches the alert field's technical name. Treat those keys as part of your alert contract, not as incidental log attributes. If custom alert fields drive reporting or routing, add the exact field names to `additional_info.include_attributes` and leave enough attribute and byte budget for them.
 
@@ -44,7 +54,7 @@ additional_info:
     - "http.request.header.*"
 ```
 
-If upstream telemetry uses different names, copy or rename them before export with your Collector distribution's transform processor or with ServiceNow Event Rules. The exporter intentionally does not create ServiceNow custom alert fields and does not add custom fields to the Event table.
+If upstream telemetry uses different names, copy or rename them before export with a transform processor included in the deployed Collector distribution. ServiceNow Event Rules can enrich or alter alert processing after ingestion; they are not upstream sanitization. The exporter intentionally does not create ServiceNow custom alert fields and does not add custom fields to the Event table.
 
 Do not log Collector configs with resolved secrets. Prefer environment variables, Collector secret providers, Kubernetes secrets, Vault, or your platform secret manager.
 
@@ -119,14 +129,39 @@ Watch ServiceNow response codes, Event Management processing lag, alert correlat
 
 Use `api: jsonv2` unless the deployment explicitly needs ServiceNow Event table Business Rules to run. ServiceNow documents the `business_rules` compatibility path as lower-throughput than the JSON v2 API. For MID, validate both the local MID listener and the MID Server upstream forwarding properties before using compatibility mode as a production claim.
 
+## Request Compression
+
+Batched Event Management JSON is highly compressible, so gzip can materially reduce bandwidth when sending high event volumes to ServiceNow. Enable it only on endpoint paths that accept compressed request bodies:
+
+```yaml
+exporters:
+  servicenow_event_management:
+    endpoint: https://example.service-now.com
+    mode: instance
+    api: jsonv2
+    compression: gzip
+```
+
+The June 2026 PDI probe validated `Content-Encoding: gzip` for direct instance JSON v2, `/api/global/em/jsonv2`, with `em_event` read-back. The same probe found that direct Business Rules compatibility, `em_event.do?JSONv2&sysparm_action=insertMultiple`, does not handle gzipped request bodies in the tested PDI: ServiceNow returned HTTP 200 with a JSON error and inserted no event. MID JSON v2 compression still needs separate validation against a running MID listener; for MID Business Rules forwarding, ServiceNow's documented `insertMultiple` properties include `mid.probe.event.queue.compress=false`.
+
+Treat compression as a route-specific production setting. Validate with read-back on the actual target instance or MID listener, and keep `api: business_rules` uncompressed unless that exact path has proven otherwise.
+
 ## Failure Behavior
 
-- Network errors, `408`, `429`, and `5xx` are retryable. `Retry-After` on `429` and `503` is passed to Collector retry handling as a throttle delay.
+- Network errors, `408`, `429`, and `5xx` are retryable. `Retry-After` on `429` and `503` is passed to Collector retry handling as a throttle delay. During bounded verification of a successful 2xx response, recognized read interruptions (`io.ErrUnexpectedEOF`, context cancellation/deadline, or a `net.Error`) are retryable only if the read has not crossed the verification limit. Unknown body read errors remain permanent.
 - Other `4xx` responses are permanent and will be dropped by Collector retry logic.
-- Non-empty 2xx response bodies are inspected for ServiceNow JSONv2 failure metadata. Record-level or top-level body failures, malformed JSON, non-JSON bodies, and oversized bodies that cannot be verified are treated as permanent exporter errors.
+- Non-empty 2xx response bodies are inspected for ServiceNow JSONv2 failure metadata. Record-level or top-level body failures, malformed JSON, non-JSON bodies, complete invalid gzip header/checksum errors, and oversized bodies that cannot be verified are treated as permanent exporter errors.
 - Error messages include endpoint mode, API flavor, and status code, but omit arbitrary response bodies for data safety.
 
-Treat repeated `429` or `503` responses as a capacity or availability signal, not just as something to hide with retries. First reduce input rate or batch size, then lengthen retry intervals or queue depth if the business can tolerate delayed events. Do not rely on infinite retry behavior; choose `max_elapsed_time` based on how long an event remains useful for Event Management correlation.
+Retrying an interrupted 2xx response may replay the entire mapped Collector callback. ServiceNow might have inserted some or all events before the acknowledgment was interrupted, so replay can create duplicate Event rows and rerun Event table Business Rules. Alert `message_key` correlation does not guarantee idempotent insertion or exactly-once delivery. The exporter does not selectively resend records from a partially read response.
+
+`io.ErrUnexpectedEOF` is a delivery-policy category, not proof of a socket fault or transience; it can also identify a truncated compressed representation. With `sending_queue` disabled, caller cancellation or deadline stops the active send and prevents further helper retries. Default asynchronous queueing detaches queued work from the original caller cancellation/deadline; a per-attempt HTTP timeout can retry while the active send context remains live.
+
+With `sending_queue` enabled in its default asynchronous mode (`wait_for_result: false`), `ConsumeLogs` success confirms enqueueing only; it does not confirm ServiceNow acceptance. `exporterhelper` owns retries and queue processing. Keep a finite `retry_on_failure.max_elapsed_time` based on event usefulness; the default is five minutes, and `0s` allows unlimited elapsed retry time. The cutoff is checked after failed attempts before scheduling another retry, so it does not cancel an in-flight read. Keep the HTTP `timeout` finite too; its default is 30 seconds. Disabling retries gives one attempt and also disables retries for network, throttling, and server-status failures.
+
+Separate requests with the same `message_key` have no exporter per-key or end-to-end ordering guarantee; see [Error Handling](product-specs/servicenow-event-management-exporter.md#error-handling) for a firing/Clear retry example. For order-sensitive alert lifecycles, verify the final alert state after event processing and any relevant delayed transitions; HTTP acceptance alone does not establish it. Include whether Clear events closed the expected alerts, as described in [Load Testing / What To Measure](load-testing.md#what-to-measure).
+
+Treat repeated `429` or `503` responses as a capacity or availability signal, not just as something to hide with retries. First reduce input rate or batch size, then lengthen retry intervals or queue depth if the business can tolerate delayed events. Choose `max_elapsed_time` based on how long an event remains useful for Event Management correlation.
 
 For permanent `4xx` responses, fix credentials, roles, token scopes, endpoint mode, or payload mapping before retrying the same traffic. Retrying permanent auth or validation failures can create unnecessary ServiceNow load without recovering data.
 
@@ -194,7 +229,9 @@ service:
       exporters: [servicenow_event_management]
 ```
 
-For a metrics-derived event path, use [examples/servicenow-event-management-metrics-event-oauth.yaml](../examples/servicenow-event-management-metrics-event-oauth.yaml) as a configuration starting point. That example keeps raw metric ingestion out of the exporter: the metrics pipeline filters only threshold breaches, `metricsaslogs` converts surviving datapoints into log records, and the logs pipeline sets ServiceNow event fields before export. Treat it as a breach-event example, not a complete alert lifecycle engine; production clear events should come from a stateful alerting source or a pipeline that explicitly emits `severity=0` with the same `message_key`.
+Use `make smoke-hec-fanout` as the repeatable demonstration harness for a richer fan-out path: Splunk HEC input, Collector enrichment, threshold filtering to ServiceNow, and all-log fan-out to Splunk HEC. Keep `sourcetype=otel:servicenow-hec-fanout` for that harness so Splunk read-back stays predictable.
+
+For a metrics-derived event path, use [examples/servicenow-event-management-metrics-event-oauth.yaml](../examples/servicenow-event-management-metrics-event-oauth.yaml) and `make smoke-metrics-event`. That example keeps raw metric ingestion out of the exporter: the metrics pipeline filters only threshold breaches, `metricsaslogs` converts surviving datapoints into log records, and the logs pipeline sets ServiceNow event fields before export. Treat it as a breach-event example, not a complete alert lifecycle engine; production clear events should come from a stateful alerting source or a pipeline that explicitly emits `severity=0` with the same `message_key`.
 
 ## Monitoring And Runbooks
 
@@ -207,7 +244,7 @@ At minimum, operate the Collector with its own telemetry enabled and alert on:
 - Collector process restarts and memory pressure;
 - time from send to ServiceNow `em_event` visibility during scheduled canaries.
 
-Runbook starting points are below; use [Troubleshooting](troubleshooting.md) for a fuller live-validation checklist.
+Runbook starting points are below; use [Troubleshooting](troubleshooting.md) for a fuller live-smoke checklist.
 
 | Symptom | First checks |
 | --- | --- |
@@ -216,6 +253,7 @@ Runbook starting points are below; use [Troubleshooting](troubleshooting.md) for
 | `429` | ServiceNow ingest capacity, batch size, input rate, retry interval, queue pressure. |
 | `503` or network errors | ServiceNow availability, proxy/TLS failures, retry behavior, queue retention. |
 | Events accepted but not useful | `message_key`, `node`, `resource`, `metric_name`, severity, Event Management rules, CMDB binding. |
+| Splunk fan-out missing rows in the HEC fan-out harness | Confirm HEC event endpoint, `sourcetype=otel:servicenow-hec-fanout`, index, search time range, and indexing delay. |
 
 ## Rollout Checklist
 
@@ -228,3 +266,4 @@ Runbook starting points are below; use [Troubleshooting](troubleshooting.md) for
 - Verify clear events close or update the expected alert.
 - Verify batch size, queue size, retry settings, and `Retry-After` behavior under expected load.
 - Confirm retention and privacy requirements for copied attributes.
+- Run `SERVICENOW_HEC_FANOUT_DRY_RUN=1 make smoke-hec-fanout`, then run a live `make smoke-hec-fanout` against non-production ServiceNow and Splunk when fan-out behavior is part of the deployment.

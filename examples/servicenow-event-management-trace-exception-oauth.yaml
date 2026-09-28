@@ -1,0 +1,142 @@
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  # This recipe's synthetic selection rule is deliberately explicit: an Error
+  # span with an event named "exception" and a string exception.type of
+  # SelectedFailure. Missing or non-string resource identity is discarded.
+  filter/required_resource_identity:
+    error_mode: propagate
+    trace_conditions:
+      - 'not IsString(resource.attributes["service.name"]) or resource.attributes["service.name"] == ""'
+      - 'not IsString(resource.attributes["host.name"]) or resource.attributes["host.name"] == ""'
+      - 'not IsString(resource.attributes["deployment.environment.name"]) or resource.attributes["deployment.environment.name"] == ""'
+
+  filter/error_status:
+    error_mode: propagate
+    trace_conditions:
+      - 'span.status.code != STATUS_CODE_ERROR'
+
+  filter/selected_exception:
+    error_mode: propagate
+    trace_conditions:
+      - 'spanevent.name != "exception" or not IsString(spanevent.attributes["exception.type"]) or spanevent.attributes["exception.type"] != "SelectedFailure"'
+
+  transform/prepare_exception:
+    error_mode: propagate
+    trace_statements:
+      # Only service.name, host.name, and deployment.environment.name are
+      # trusted from the resource. Span-level identity shadows are overwritten
+      # from those resource values before the connector reads dimensions.
+      - context: resource
+        statements:
+          - keep_keys(resource.attributes, ["service.name", "host.name", "deployment.environment.name"])
+      - context: span
+        statements:
+          - keep_keys(span.attributes, ["host.name", "deployment.environment.name"])
+          - set(span.attributes["host.name"], resource.attributes["host.name"])
+          - set(span.attributes["deployment.environment.name"], resource.attributes["deployment.environment.name"])
+
+  transform/servicenow_event:
+    error_mode: propagate
+    log_statements:
+      - context: log
+        statements:
+          # exceptionsconnector v0.153.0 copies span attributes and always
+          # writes exception.stacktrace; this allowlist removes those values,
+          # inbound controls, and arbitrary producer fields before mapping.
+          - keep_keys(log.attributes, ["service.name", "host.name", "deployment.environment.name", "exception.type"])
+          # The four guarded copies preserve only native nonzero IDs and
+          # nonempty scope fields after producer aliases have been cleared.
+          - 'set(log.attributes["trace_id"], log.trace_id.string) where log.trace_id != TraceID(0x00000000000000000000000000000000) and log.attributes["trace_id"] == nil and resource.attributes["trace_id"] == nil'
+          - 'set(log.attributes["span_id"], log.span_id.string) where log.span_id != SpanID(0x0000000000000000) and log.attributes["span_id"] == nil and resource.attributes["span_id"] == nil'
+          - 'set(log.attributes["instrumentation_scope.name"], instrumentation_scope.name) where instrumentation_scope.name != "" and log.attributes["instrumentation_scope.name"] == nil and resource.attributes["instrumentation_scope.name"] == nil'
+          - 'set(log.attributes["instrumentation_scope.version"], instrumentation_scope.version) where instrumentation_scope.version != "" and log.attributes["instrumentation_scope.version"] == nil and resource.attributes["instrumentation_scope.version"] == nil'
+          - set(log.attributes["alert.rule_id"], "demo.selected_exception")
+          - set(log.attributes["alert.originating_signal"], "traces")
+          - set(log.attributes["servicenow.source"], "opentelemetry-trace-exception")
+          - set(log.attributes["servicenow.event_class"], "otel-trace-exception")
+          - set(log.attributes["servicenow.type"], "trace-exception")
+          - set(log.attributes["servicenow.metric_name"], "selected.exception")
+          - set(log.attributes["servicenow.resource"], log.attributes["service.name"])
+          - set(log.attributes["servicenow.node"], log.attributes["host.name"])
+          - set(log.attributes["servicenow.severity"], 2)
+          - set(log.attributes["servicenow.resolution_state"], "New")
+          - set(log.attributes["servicenow.description"], "Selected exception observed")
+          - set(log.body, "Selected exception observed")
+
+  batch/servicenow:
+    timeout: 5s
+    send_batch_size: 10
+    send_batch_max_size: 10
+
+connectors:
+  exceptions:
+    dimensions:
+      - name: exception.type
+      - name: host.name
+      - name: deployment.environment.name
+
+exporters:
+  servicenow_event_management:
+    endpoint: ${env:SERVICENOW_INSTANCE_URL}
+    mode: instance
+    api: jsonv2
+    auth:
+      authenticator: oauth2client/servicenow
+    source: opentelemetry-trace-exception
+    type: trace-exception
+    message_key:
+      format: sha256_v1
+      attributes: [alert.rule_id, service.name, host.name, deployment.environment.name, exception.type]
+    additional_info:
+      include_attributes:
+        - alert.rule_id
+        - alert.originating_signal
+        - service.name
+        - host.name
+        - deployment.environment.name
+        - exception.type
+        - trace_id
+        - span_id
+        - instrumentation_scope.name
+        - instrumentation_scope.version
+      max_attributes: 128
+      max_value_length: 4000
+    timeout: 30s
+    sending_queue:
+      enabled: true
+      queue_size: 1000
+      batch:
+        sizer: items
+        min_size: 10
+        max_size: 10
+        flush_timeout: 200ms
+    retry_on_failure:
+      enabled: true
+      initial_interval: 5s
+      max_interval: 30s
+
+extensions:
+  oauth2client/servicenow:
+    client_id: ${env:SERVICENOW_CLIENT_ID}
+    client_secret: ${env:SERVICENOW_CLIENT_SECRET}
+    token_url: ${env:SERVICENOW_TOKEN_URL}
+    grant_type: client_credentials
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+service:
+  extensions: [oauth2client/servicenow, health_check]
+  pipelines:
+    traces/exception:
+      receivers: [otlp]
+      processors: [filter/required_resource_identity, filter/error_status, filter/selected_exception, transform/prepare_exception]
+      exporters: [exceptions]
+    logs/servicenow:
+      receivers: [exceptions]
+      processors: [transform/servicenow_event, batch/servicenow]
+      exporters: [servicenow_event_management]

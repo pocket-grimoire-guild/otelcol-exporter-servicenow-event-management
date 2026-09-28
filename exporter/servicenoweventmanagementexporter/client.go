@@ -7,8 +7,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"math"
+	"net"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -111,14 +114,18 @@ func (c *serviceNowClient) sendPayload(ctx context.Context, payload eventPayload
 	}()
 
 	if resp.StatusCode >= http.StatusOK && resp.StatusCode < http.StatusMultipleChoices {
-		if responseSummary := summarizeSuccessResponse(resp); responseSummary != "" {
-			return consumererror.NewPermanent(fmt.Errorf(
+		if responseSummary, retryableReadError := summarizeSuccessResponse(resp); responseSummary != "" {
+			err := fmt.Errorf(
 				"ServiceNow Event Management request failed mode=%s api=%s status=%d: %s",
 				c.runtime.mode,
 				c.runtime.api,
 				resp.StatusCode,
 				responseSummary,
-			))
+			)
+			if retryableReadError {
+				return err
+			}
+			return consumererror.NewPermanent(err)
 		}
 		return nil
 	}
@@ -256,6 +263,10 @@ func retryAfterDelay(value string) (time.Duration, bool) {
 		if seconds < 0 {
 			return 0, false
 		}
+		// Clamp before multiplication so an accepted value cannot wrap time.Duration.
+		if int64(seconds) > int64(math.MaxInt64)/int64(time.Second) {
+			return time.Duration(math.MaxInt64), true
+		}
 		return time.Duration(seconds) * time.Second, true
 	}
 	if date, err := http.ParseTime(value); err == nil {
@@ -281,29 +292,37 @@ func summarizeErrorResponse(resp *http.Response) string {
 	return summary
 }
 
-func summarizeSuccessResponse(resp *http.Response) string {
+func summarizeSuccessResponse(resp *http.Response) (string, bool) {
 	responseBody, tooLarge, readErr := readBoundedResponseBody(resp.Body, maxSuccessResponseBytes)
 	_, _ = io.CopyN(io.Discard, resp.Body, maxErrorResponseDrainBytes)
 	if readErr != nil {
-		return "2xx response body omitted for data safety; failed to read response body"
+		return "2xx response body omitted for data safety; failed to read response body", !tooLarge && isRetryableSuccessResponseReadError(readErr)
 	}
 
 	responseBody = bytes.TrimSpace(responseBody)
 	if len(responseBody) == 0 {
-		return ""
+		return "", false
 	}
 	if tooLarge {
-		return "2xx response body too large to verify; response body omitted for data safety"
+		return "2xx response body too large to verify; response body omitted for data safety", false
 	}
 	if !isJSONResponseBody(resp.Header.Get("Content-Type"), responseBody) {
-		return "unexpected non-JSON 2xx response; response body omitted for data safety"
+		return "unexpected non-JSON 2xx response; response body omitted for data safety", false
 	}
 
 	summary, err := summarizeServiceNow2xxJSONResponse(responseBody)
 	if err != nil {
-		return "invalid JSON 2xx response; response body omitted for data safety"
+		return "invalid JSON 2xx response; response body omitted for data safety", false
 	}
-	return summary
+	return summary, false
+}
+
+func isRetryableSuccessResponseReadError(err error) bool {
+	if errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
+	var networkError net.Error
+	return errors.As(err, &networkError)
 }
 
 func readBoundedResponseBody(body io.Reader, limit int64) ([]byte, bool, error) {

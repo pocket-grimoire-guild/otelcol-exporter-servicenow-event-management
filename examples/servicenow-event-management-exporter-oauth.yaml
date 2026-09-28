@@ -20,7 +20,7 @@ processors:
     send_batch_max_size: 100
 
 exporters:
-  # Print received telemetry during local validation runs.
+  # Print received telemetry during local smoke runs.
   debug:
     verbosity: basic
 

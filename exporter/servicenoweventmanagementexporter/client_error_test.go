@@ -6,9 +6,11 @@ package servicenoweventmanagementexporter
 import (
 	"context"
 	"io"
+	"math"
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -274,8 +276,9 @@ func TestSummarizeSuccessResponseRejectsOversizedBodies(t *testing.T) {
 		Body:   io.NopCloser(body),
 	}
 
-	summary := summarizeSuccessResponse(resp)
+	summary, retryable := summarizeSuccessResponse(resp)
 	require.Contains(t, summary, "too large to verify")
+	require.False(t, retryable)
 	require.Equal(t, 1, body.Len())
 }
 
@@ -343,6 +346,99 @@ func TestClientIgnoresMalformedRetryAfter(t *testing.T) {
 	require.Error(t, err)
 	require.False(t, consumererror.IsPermanent(err))
 	require.NotContains(t, err.Error(), "Throttle (")
+}
+
+func TestRetryAfterDelayNumericSeconds(t *testing.T) {
+	maxWholeSeconds := int64(math.MaxInt64) / int64(time.Second)
+	maxNativeInt := uint64(^uint(0) >> 1)
+	outOfNativeInt := strconv.FormatUint(maxNativeInt+1, 10)
+	maxNativeIntValue := strconv.FormatUint(maxNativeInt, 10)
+
+	var maxNativeDuration time.Duration
+	if strconv.IntSize == 64 {
+		maxNativeDuration = time.Duration(math.MaxInt64)
+	} else {
+		maxNativeDuration = time.Duration(int64(maxNativeInt)) * time.Second
+	}
+	boundaryDelay := time.Duration(0)
+	boundaryOK := false
+	firstOverflowDelay := time.Duration(0)
+	firstOverflowOK := false
+	if strconv.IntSize == 64 {
+		boundaryDelay = time.Duration(maxWholeSeconds) * time.Second
+		boundaryOK = true
+		firstOverflowDelay = time.Duration(math.MaxInt64)
+		firstOverflowOK = true
+	}
+
+	tests := []struct {
+		name  string
+		value string
+		want  time.Duration
+		ok    bool
+	}{
+		{name: "zero", value: "0", want: 0, ok: true},
+		{name: "leading zeroes", value: "0001", want: time.Second, ok: true},
+		{name: "leading plus", value: "+2", want: 2 * time.Second, ok: true},
+		{name: "surrounding whitespace", value: " \t3 \n", want: 3 * time.Second, ok: true},
+		{name: "negative zero", value: "-0", want: 0, ok: true},
+		{name: "largest whole-second duration", value: strconv.FormatInt(maxWholeSeconds, 10), want: boundaryDelay, ok: boundaryOK},
+		{name: "first value beyond whole-second duration", value: strconv.FormatInt(maxWholeSeconds+1, 10), want: firstOverflowDelay, ok: firstOverflowOK},
+		{name: "former zero wrap", value: "36028797018963968", want: firstOverflowDelay, ok: firstOverflowOK},
+		{name: "former one-second wrap", value: "36028797018963969", want: firstOverflowDelay, ok: firstOverflowOK},
+		{name: "largest native signed integer", value: maxNativeIntValue, want: maxNativeDuration, ok: true},
+		{name: "outside native signed integer range", value: outOfNativeInt, ok: false},
+		{name: "negative", value: "-1", ok: false},
+		{name: "fractional", value: "1.5", ok: false},
+		{name: "empty", value: "", ok: false},
+		{name: "malformed", value: "tomorrow", ok: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, ok := retryAfterDelay(tt.value)
+			require.Equal(t, tt.ok, ok)
+			require.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestRetryAfterDelayHTTPDates(t *testing.T) {
+	tests := []struct {
+		name string
+		date time.Time
+		want func(time.Duration) bool
+	}{
+		{name: "past date", date: time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC), want: func(delay time.Duration) bool { return delay < 0 }},
+		{name: "far future date", date: time.Date(2099, time.January, 1, 0, 0, 0, 0, time.UTC), want: func(delay time.Duration) bool { return delay > 0 }},
+		{name: "duration-saturating future date", date: time.Date(9999, time.January, 1, 0, 0, 0, 0, time.UTC), want: func(delay time.Duration) bool { return delay == time.Duration(math.MaxInt64) }},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, ok := retryAfterDelay(tt.date.Format(http.TimeFormat))
+			require.True(t, ok)
+			require.True(t, tt.want(got), "unexpected parsed delay: %s", got)
+		})
+	}
+}
+
+func TestClientUsesFirstRetryAfterHeader(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Add("Retry-After", "0")
+		w.Header().Add("Retry-After", "9223372037")
+		w.WriteHeader(http.StatusTooManyRequests)
+	}))
+	defer server.Close()
+
+	cfg := createDefaultConfig().(*Config)
+	cfg.ClientConfig.Endpoint = server.URL
+	cfg.Mode = ModeMID
+
+	client := startClient(t, cfg, nil)
+	err := client.sendPayload(t.Context(), eventPayload{Records: []eventRecord{{Source: "opentelemetry"}}})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "Throttle (0s)")
 }
 
 func TestClientSurfacesContextCancellation(t *testing.T) {

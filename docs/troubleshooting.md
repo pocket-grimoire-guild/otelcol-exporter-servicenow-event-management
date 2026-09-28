@@ -3,8 +3,9 @@
 Start by separating exporter behavior from ServiceNow environment behavior:
 
 1. Run `make verify` for local mapping, config, fake endpoint, and example checks.
-2. POST one synthetic JSON v2 event directly to ServiceNow or MID before running a full Collector pipeline.
-3. Only then run Collector-backed validation against the target environment.
+2. Run `make smoke-servicenow-jsonv2` without `SERVICENOW_SEND=1` to inspect the safe synthetic payload.
+3. Send one direct smoke event with `SERVICENOW_SEND=1` before running a full Collector pipeline.
+4. Only then run Collector-backed rich or throughput smokes.
 
 ## Symptoms
 
@@ -21,7 +22,7 @@ Start by separating exporter behavior from ServiceNow environment behavior:
 | MID mTLS handshake fails | Check MID Web Server secure-connection state, server keypair, Collector `tls.ca_file`, MID truststore contents, client certificate validity, and whether the MID Web Server/Event Listener contexts were restarted after trust changes. |
 | Successful MID POST but no ServiceNow event | Confirm MID Event Listener context is started, upstream connectivity to the instance is healthy, Event Management plugin is active, and read-back is querying the right run id/time range. |
 | MID Business Rules compatibility not visible | Confirm the MID forwarding properties in [MID Business Rules compatibility](mid-business-rules.md), then verify an actual Business Rules side effect after read-back. |
-| Direct validation returns non-JSON HTML | Wake the PDI or fix the target URL. PDI hibernation pages and login pages are live-environment failures, not exporter successes. |
+| Direct smoke prints non-JSON HTML | Wake the PDI or fix the target URL. PDI hibernation pages and login pages are live-environment failures, not exporter successes. |
 | Events are accepted but not useful | Review `servicenow.message_key`, `servicenow.node`, `servicenow.event_class`, `servicenow.metric_name`, severity, Event Management rules, and CMDB binding. |
 | Clear events do not close the expected alert | Verify the clear event has the same `servicenow.message_key` as the open event, final severity `0`, and `resolution_state=Closing` or equivalent source-owned resolution semantics. |
 
@@ -43,4 +44,4 @@ openssl s_client \
   -state </dev/null
 ```
 
-For live throughput or field-variety issues, use an environment-owned generator or integration test and record the run id, accepted count, read-back latency, status distribution, and field variety in the validation evidence.
+For live throughput or field-variety issues, use `make smoke-servicenow-throughput` and record the run id, accepted count, read-back latency, status distribution, and field variety in the validation evidence.

@@ -7,7 +7,8 @@ Security fixes target the latest public minor release line. Before `v1.0.0`, use
 | Version | Supported |
 | --- | --- |
 | `main` | development only |
-| `v0.2.x` | supported (development/public preview) |
+| `v0.3.x` | supported (development/public preview) once `v0.3.0` is published |
+| `v0.2.x` | supported until `v0.3.0` is published; then not supported |
 | `v0.1.x` | not supported |
 
 ## Reporting A Vulnerability

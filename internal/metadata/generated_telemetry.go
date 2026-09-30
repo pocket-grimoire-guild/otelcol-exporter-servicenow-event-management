@@ -16,11 +16,11 @@ import (
 )
 
 func Meter(settings component.TelemetrySettings) metric.Meter {
-	return settings.MeterProvider.Meter("github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management/exporter/servicenoweventmanagementexporter")
+	return settings.MeterProvider.Meter("github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management")
 }
 
 func Tracer(settings component.TelemetrySettings) trace.Tracer {
-	return settings.TracerProvider.Tracer("github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management/exporter/servicenoweventmanagementexporter")
+	return settings.TracerProvider.Tracer("github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management")
 }
 
 // TelemetryBuilder provides an interface for components to report telemetry

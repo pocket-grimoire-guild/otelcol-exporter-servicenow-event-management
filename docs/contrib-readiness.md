@@ -1,6 +1,6 @@
 # OpenTelemetry Contrib Readiness
 
-This project is a standalone Collector exporter. It is shaped to be friendly to a future `opentelemetry-collector-contrib` donation, but it is not currently part of the contrib repository or contrib distribution.
+This project is an independent standalone Collector exporter, not part of the `opentelemetry-collector-contrib` repository or distribution. Any future proposal to add it to contrib would require a separate upstream review and is outside this release.
 
 ## Current Local Alignment
 
@@ -13,7 +13,7 @@ This project is a standalone Collector exporter. It is shaped to be friendly to 
 
 ## Required Before A Contrib Proposal
 
-- Keep the standalone public naming stable before any public tag or contrib proposal.
+- Keep the standalone public naming stable and review it as part of any future contrib proposal.
 - Identify at least three prospective code owners by GitHub handle.
 - Find an OpenTelemetry approver or maintainer sponsor from a different company.
 - Prepare a proposal issue covering use cases, supported signals, config options, ServiceNow API choices, similar components, and maintenance ownership.

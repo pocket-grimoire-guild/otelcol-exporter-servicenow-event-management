@@ -17,7 +17,7 @@ make build-collector
 
 The `go.mod` Go 1.25.0 directive is the module minimum; CI uses Go 1.25.7 for builds and verification. Collector OTTL generic linking failed in the Go 1.25.0 build, and an upstream Collector Contrib report documents a related failure resolved with Go 1.25.7 ([issue #45909](https://github.com/open-telemetry/opentelemetry-collector-contrib/issues/45909#issuecomment-3855996013)). For a reproducible local gate, run `GOTOOLCHAIN=go1.25.7 make install-tools verify`.
 
-The verification gate enforces at least 90% statement coverage for `exporter/servicenoweventmanagementexporter` and requires standalone copyright plus Apache-2.0 SPDX headers on checked-in Go files.
+The verification gate enforces at least 90% statement coverage for the root Go package and requires standalone copyright plus Apache-2.0 SPDX headers on checked-in Go files.
 
 ## Licensing
 
@@ -33,7 +33,8 @@ If a future change copies substantial source from another Apache-2.0 project, re
 ## Component Rules
 
 - Keep the Collector component ID `servicenow_event_management`.
-- Keep the Go package path `exporter/servicenoweventmanagementexporter`.
+- Keep the Go import path at the module root and the declared package name `servicenoweventmanagementexporter`. OCB manifests must set a valid `name` alias because the module path ends in a hyphenated name.
+- Treat the v0.3.0 package move as a breaking pre-1.0 import change. Preserve the Collector component ID and YAML contract, and document the instrumentation-scope change for telemetry consumers.
 - Use Collector helper APIs for queue, retry, timeout, auth, TLS, and HTTP behavior.
 - Do not add exporter-owned Basic, bearer, OAuth, MID API key, or mTLS flows.
 - Do not write directly to ServiceNow tables.

@@ -10,6 +10,7 @@ This matrix separates compatibility baselines from paths exercised. Validation r
 | OpenTelemetry Collector | `v0.153.0` component/tool modules and `v1.59.0` stable modules | Pinned compatibility baseline for this preview; dated build and integration results are described with their evidence below. |
 | Collector tools | `builder` and `mdatagen` from Collector `v0.153.0` | Installed by `make install-tools` and enforced by `make verify` |
 | Component stability | development, logs only | Intentional |
+| Go package import | v0.2.0 and earlier: nested package; v0.3.0: module root | Breaking pre-1.0 import migration with no compatibility package. The package name, Collector component type `servicenow_event_management`, and YAML settings remain unchanged. The generated meter and tracer scopes move to the root import path; see the [README migration examples](../README.md#go-package-migration-in-v030). |
 
 During 2026 build validation, Go `1.25.0` hit an OTTL linker failure in the metrics distribution. CI selects Go `1.25.7` for builds following the patch-level resolution documented in an [upstream report](https://github.com/open-telemetry/opentelemetry-collector-contrib/issues/45909#issuecomment-3855996013). Earlier local validation on 2026-09-28 passed `make verify` on Go `1.25.7`; the tag workflow reruns that gate on the tagged commit. This toolchain evidence is separate from the dated historical ServiceNow validation rows below.
 

@@ -1,8 +1,10 @@
-# ServiceNow Event Management Exporter
+# ServiceNow Event Management Exporter Behavior
 
 The `servicenow_event_management` exporter converts OpenTelemetry logs into ServiceNow ITOM Event Management records and posts them to either the instance endpoint or a MID WebService endpoint.
 
-Status: standalone development component. This exporter is not currently part of the OpenTelemetry Collector Contrib distribution; see [contrib readiness](../../docs/contrib-readiness.md) for the future donation checklist.
+Status: standalone development component and v0.3.0 public preview. This exporter is not currently part of the OpenTelemetry Collector Contrib distribution; see [contrib readiness](contrib-readiness.md) for the future donation checklist.
+
+The v0.3.0 package lives at the Go module root. Its import path and instrumentation scope are now `github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management`; the Go package name remains `servicenoweventmanagementexporter`, and the Collector component ID and YAML configuration contract are unchanged. See [the package migration note](../README.md#go-package-migration-in-v030) before upgrading from the former nested import path.
 
 Only logs are supported. Metrics and traces are intentionally unsupported until a later plan defines clear event semantics.
 
@@ -32,11 +34,11 @@ The exporter behavior is tied to ServiceNow Event Management docs:
 - ServiceNow OAuth client credentials setup: [Client Credentials](https://www.servicenow.com/docs/r/xanadu/platform-security/authentication/client-credentials.html) and [Add the OAuth Application User](https://www.servicenow.com/docs/r/platform-security/authentication/add-oauth-application-user.html).
 - ServiceNow direct mTLS setup: [Set up mutual authentication](https://www.servicenow.com/docs/r/platform-security/certificate-based-authentication/set-up-mutual-auth.html).
 
-See the repository [source map](../../docs/references/source-map.md) for last-reviewed dates and decision notes.
+See the repository [source map](references/source-map.md) for last-reviewed dates and decision notes.
 
 ## Configuration
 
-The checked-in examples are the canonical runnable configurations. This section shows the exporter shape and leaves repeated defaults in the example files and the full [configuration reference](../../docs/configuration.md).
+The checked-in examples are the canonical runnable configurations. This section shows the exporter shape and leaves repeated defaults in the example files and the full [configuration reference](configuration.md).
 
 ```yaml
 exporters:
@@ -87,11 +89,11 @@ Full example configurations:
 
 | File | Purpose |
 | --- | --- |
-| [examples/servicenow-event-management-exporter.yaml](../../examples/servicenow-event-management-exporter.yaml) | Direct instance JSON v2 with Basic auth. |
-| [examples/servicenow-event-management-exporter-business-rules.yaml](../../examples/servicenow-event-management-exporter-business-rules.yaml) | Direct instance Business Rules compatibility with Basic auth. |
-| [examples/servicenow-event-management-exporter-bearer.yaml](../../examples/servicenow-event-management-exporter-bearer.yaml) | Direct instance JSON v2 with static bearer token auth. |
-| [examples/servicenow-event-management-exporter-oauth.yaml](../../examples/servicenow-event-management-exporter-oauth.yaml) | Direct instance JSON v2 with OAuth2 client credentials. |
-| [examples/servicenow-event-management-exporter-mid.yaml](../../examples/servicenow-event-management-exporter-mid.yaml) | MID Web Server JSON v2 with MID API key auth. |
+| [examples/servicenow-event-management-exporter.yaml](../examples/servicenow-event-management-exporter.yaml) | Direct instance JSON v2 with Basic auth. |
+| [examples/servicenow-event-management-exporter-business-rules.yaml](../examples/servicenow-event-management-exporter-business-rules.yaml) | Direct instance Business Rules compatibility with Basic auth. |
+| [examples/servicenow-event-management-exporter-bearer.yaml](../examples/servicenow-event-management-exporter-bearer.yaml) | Direct instance JSON v2 with static bearer token auth. |
+| [examples/servicenow-event-management-exporter-oauth.yaml](../examples/servicenow-event-management-exporter-oauth.yaml) | Direct instance JSON v2 with OAuth2 client credentials. |
+| [examples/servicenow-event-management-exporter-mid.yaml](../examples/servicenow-event-management-exporter-mid.yaml) | MID Web Server JSON v2 with MID API key auth. |
 
 `mode` selects the deployment route. `mode: instance` posts directly to the ServiceNow instance, and `mode: mid` posts to the MID WebService listener.
 
@@ -104,13 +106,13 @@ Full example configurations:
 | `mid` | `jsonv2` | `/api/mid/em/jsonv2` |
 | `mid` | `business_rules` | `/api/mid/em/jsonv2` |
 
-For `mode: mid` with `api: business_rules`, the client-facing URL remains the MID JSON v2 listener. ServiceNow documents that the MID Server must be configured with `mid.probe.event.endpoint.url=em_event.do?JSONv2%26sysparm_action=insertMultiple` plus the related MID properties so the MID Server forwards to the Business Rules-compatible instance endpoint. See [MID Business Rules compatibility](../../docs/mid-business-rules.md) for the validation checklist and PDI evidence.
+For `mode: mid` with `api: business_rules`, the client-facing URL remains the MID JSON v2 listener. ServiceNow documents that the MID Server must be configured with `mid.probe.event.endpoint.url=em_event.do?JSONv2%26sysparm_action=insertMultiple` plus the related MID properties so the MID Server forwards to the Business Rules-compatible instance endpoint. See [MID Business Rules compatibility](mid-business-rules.md) for the validation checklist and PDI evidence.
 
 The current PDI validated direct `api: business_rules` with Basic auth and MID `api: business_rules` forwarding with a local Linux MID runtime configured for the upstream `insertMultiple` endpoint.
 
 Endpoint query parameters are rejected except for the direct instance Business Rules compatibility query on `/em_event.do`. Use Collector `auth`, `headers`, `tls`, or `proxy_url` settings instead of encoding auth, routing, or proxy behavior in endpoint query strings.
 
-HTTP request-body compression is available through Collector `confighttp` with `compression: gzip`, but support is endpoint-specific. A June 2026 PDI probe validated gzip for direct instance JSON v2 at `/api/global/em/jsonv2`; the direct Business Rules compatibility path `em_event.do?JSONv2&sysparm_action=insertMultiple` returned a JSON error and inserted no row when sent gzipped bytes. Keep Business Rules compatibility and MID forwarding paths uncompressed unless the exact target endpoint has been validated with read-back. See the [configuration reference](../../docs/configuration.md#http-request-compression) and [compression validation evidence](../../docs/validation-evidence/2026-06-compression-validation.md).
+HTTP request-body compression is available through Collector `confighttp` with `compression: gzip`, but support is endpoint-specific. A June 2026 PDI probe validated gzip for direct instance JSON v2 at `/api/global/em/jsonv2`; the direct Business Rules compatibility path `em_event.do?JSONv2&sysparm_action=insertMultiple` returned a JSON error and inserted no row when sent gzipped bytes. Keep Business Rules compatibility and MID forwarding paths uncompressed unless the exact target endpoint has been validated with read-back. See the [configuration reference](configuration.md#http-request-compression) and [compression validation evidence](validation-evidence/2026-06-compression-validation.md).
 
 ## Authentication
 
@@ -230,7 +232,7 @@ When both OTel timestamps are zero, the exporter samples the clock once per `Con
 
 Extra resource and log attributes are copied to `additional_info`, excluding `servicenow.*` control attributes. The exact key `otel.servicenow.additional_info.metadata_reduced` is reserved for the exporter. When a producer value under that key passes the configured filters and rendering, it is counted once as a dropped optional attribute through the normal accounting and is never copied as the marker. No configuration change is needed for other producers; producers that rely on this exact key for enrichment must rename it to retain that value. On ordinary successful packing, original OTel severity text and number are preserved under `otel.severity_text` and `otel.severity_number`.
 
-Native log trace/span IDs and instrumentation-scope name/version are not copied automatically. For an opt-in upstream Transform recipe, pipeline merge behavior, and the identity and retention caveats, see [Native Log Context in the configuration reference](../../docs/configuration.md#native-log-context).
+Native log trace/span IDs and instrumentation-scope name/version are not copied automatically. For an opt-in upstream Transform recipe, pipeline merge behavior, and the identity and retention caveats, see [Native Log Context in the configuration reference](configuration.md#native-log-context).
 
 `additional_info` is encoded as a JSON string whose values are strings. ServiceNow JSON v2 examples sometimes show this field as an object, but ServiceNow event forms document the field as a JSON string and real-instance testing showed object payloads storing as `[object Object]`. The exporter therefore sends a string such as `"{\"otel.signal\":\"logs\",\"test.count\":\"7\"}"`.
 
@@ -252,7 +254,7 @@ field_limits:
 
 An explicit non-empty `servicenow.message_key` still wins and is preserved byte-for-byte when it fits the configured message-key budget. An explicit key over that budget fails mapping with a permanent sanitized error; the exporter does not hash or truncate it in this mode. One oversized key rejects the whole mapped callback batch before HTTP, so otherwise valid records in that batch are not delivered. With queueing enabled, exporter-helper processing surfaces the mapping error, so it may not be returned by the original `ConsumeLogs` call.
 
-Opting in changes generated event identities. Close or drain alerts under their old keys before cutover, or manage an old-key route for their update and clear lifecycle. Include queued and replayed records in that migration. Changing configured attribute names or order, or entering or leaving configured-attribute fallback, can change identity in either format. Use the same format, configured attribute order and names, values, and byte-budget policy across replicas and for firing and clear records. Keep explicit upstream keys when pipelines need to share identity. See the [product specification](../../docs/product-specs/servicenow-event-management-exporter.md#message-key-formats) for the exact framing and the [configuration reference](../../docs/configuration.md#message-key) for the option and migration details.
+Opting in changes generated event identities. Close or drain alerts under their old keys before cutover, or manage an old-key route for their update and clear lifecycle. Include queued and replayed records in that migration. Changing configured attribute names or order, or entering or leaving configured-attribute fallback, can change identity in either format. Use the same format, configured attribute order and names, values, and byte-budget policy across replicas and for firing and clear records. Keep explicit upstream keys when pipelines need to share identity. See the [product specification](product-specs/servicenow-event-management-exporter.md#message-key-formats) for the exact framing and the [configuration reference](configuration.md#message-key) for the option and migration details.
 
 ## Field Limits And `additional_info`
 
@@ -268,7 +270,7 @@ When required exporter metadata still exceeds the budget after optional attribut
 
 Use `additional_info.include_attributes` as a production allowlist when sending telemetry from sources that may contain personal data, payloads, headers, or application secrets. Use `additional_info.exclude_attributes` for known noisy or unsafe keys, and extend `additional_info.redact_attributes` for local naming conventions.
 
-These filters apply only to top-level resource and log attributes copied into `additional_info`; they do not sanitize the body, mapped event fields, trusted ServiceNow controls, or exporter metadata. Redacting a matching parent replaces its whole copied value, including any nested map or slice content. See [Additional Info configuration](../../docs/configuration.md#additional-info) for glob and nested-value behavior, and [Production Hardening](../../docs/production-hardening.md#data-safety) for the event-input trust boundary.
+These filters apply only to top-level resource and log attributes copied into `additional_info`; they do not sanitize the body, mapped event fields, trusted ServiceNow controls, or exporter metadata. Redacting a matching parent replaces its whole copied value, including any nested map or slice content. See [Additional Info configuration](configuration.md#additional-info) for glob and nested-value behavior, and [Production Hardening](production-hardening.md#data-safety) for the event-input trust boundary.
 
 For reliable ServiceNow deduplication, CI binding, alert correlation, and worker distribution, prefer setting at least `servicenow.node`, `servicenow.event_class`, `servicenow.metric_name`, `servicenow.message_key`, and `servicenow.severity` before the exporter.
 

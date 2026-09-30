@@ -2,6 +2,8 @@
 
 This project is a community OpenTelemetry Collector exporter for ServiceNow Event Management. It is not an official ServiceNow product and is not currently part of `opentelemetry-collector-contrib`.
 
+The prepared v0.3.0 release remains a standalone development/public preview. It moves the Go package to the module root without a compatibility package for the former nested import; the Collector component type and YAML settings stay the same.
+
 ## Where To Ask
 
 - Use GitHub issues for reproducible bugs, feature requests, and documentation problems.

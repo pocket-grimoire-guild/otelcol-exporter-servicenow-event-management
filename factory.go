@@ -19,7 +19,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 
-	"github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management/exporter/servicenoweventmanagementexporter/internal/metadata"
+	"github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management/internal/metadata"
 )
 
 var Type = metadata.Type

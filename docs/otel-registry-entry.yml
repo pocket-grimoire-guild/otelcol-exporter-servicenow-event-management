@@ -1,5 +1,7 @@
-# Proposed OpenTelemetry Registry entry. Submit or update it after v0.2.0 is
-# publicly available. Collector exporters use registryType: exporter.
+# Proposed OpenTelemetry Registry entry, retained as a draft reference. Registry
+# submissions are frozen (https://opentelemetry.io/ecosystem/registry/adding/),
+# so do not submit it. Recheck acceptance and registryType if it reopens; the
+# current type is provisional.
 
 title: ServiceNow Event Management Collector Exporter
 registryType: exporter
@@ -18,10 +20,11 @@ authors:
 urls:
   repo: https://github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management
   docs: https://github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management#readme
-  package: https://pkg.go.dev/github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management/exporter/servicenoweventmanagementexporter
+  package: https://pkg.go.dev/github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management
 install:
   collector:
     exporters:
       - gomod:
-          github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management v0.2.0
-        import: github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management/exporter/servicenoweventmanagementexporter
+          github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management v0.3.0
+        import: github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management
+        name: servicenoweventmanagementexporter

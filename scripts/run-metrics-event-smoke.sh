@@ -86,7 +86,8 @@ dist:
 exporters:
   - gomod:
       github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management v0.0.0
-    import: github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management/exporter/servicenoweventmanagementexporter
+    import: github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management
+    name: servicenoweventmanagementexporter
     path: ${repo_root}
   - gomod:
       go.opentelemetry.io/collector/exporter/debugexporter v0.153.0

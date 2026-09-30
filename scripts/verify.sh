@@ -171,11 +171,14 @@ required_files=(
   docs/contrib-readiness.md
   docs/compatibility.md
   docs/configuration.md
+  docs/exporter-behavior.md
   docs/evals.md
   docs/load-testing.md
   docs/mid-business-rules.md
   docs/production-hardening.md
   docs/release.md
+  docs/releases/v0.3.0.md
+  docs/releases/v0.2.0.md
   docs/servicenow-real-instance-testing.md
   docs/troubleshooting.md
   docs/validation-evidence/README.md
@@ -192,7 +195,9 @@ required_files=(
   examples/servicenow-event-management-exporter-mid.yaml
   examples/servicenow-event-management-metrics-event-oauth.yaml
   examples/servicenow-event-management-trace-exception-oauth.yaml
-  exporter/servicenoweventmanagementexporter/documentation.md
+  documentation.md
+  doc.go
+  metadata.yaml
   scripts/add-go-license-headers.sh
   scripts/check-docs.sh
   scripts/check-collector-tool-version.sh
@@ -202,6 +207,7 @@ required_files=(
   scripts/run-metrics-event-smoke.sh
   scripts/test-metrics-event.sh
   scripts/test-trace-exception.sh
+  tests/release/test_release_preview.py
   tests/metricsevent/example_test.go
   tests/traceexception/example_test.go
 )
@@ -211,6 +217,9 @@ for file in "${required_files[@]}"; do
     exit 1
   }
 done
+
+log "test release preview guards with mocked git and gh"
+python3 -B -m unittest discover -s tests/release -v
 
 log "check focused repository context"
 if git grep -n -E -- 'jupyter|streamlit|reverse-engineer|git-lfs|libreoffice|pandoc|tesseract|wkhtmltopdf' \
@@ -231,6 +240,10 @@ if git grep -n -E -- "${prototype_module_pattern}" \
 fi
 rm -f /tmp/servicenow-event-management-module-path-check.txt
 
+if [[ -e exporter/servicenoweventmanagementexporter ]]; then
+  fail "former nested exporter package still exists; the v0.3.0 package lives at the module root"
+fi
+
 log "check Go license headers"
 missing_license=()
 while IFS= read -r file; do
@@ -247,23 +260,25 @@ if (( ${#missing_license[@]} > 0 )); then
   exit 1
 fi
 
-if find exporter -name metadata.yaml -print -quit | grep -q .; then
+if [[ -f metadata.yaml ]]; then
   log "check generated metadata"
   ./scripts/check-collector-tool-version.sh mdatagen go.opentelemetry.io/collector/cmd/mdatagen "${otel_collector_version}" >/dev/null
   generated_tmp="$(mktemp -d)"
   mkdir -p "${generated_tmp}/before"
-  find exporter/servicenoweventmanagementexporter -type f \
-    \( -name 'generated_*.go' -o -name documentation.md -o -name README.md \) -print0 \
-    | sort -z > "${generated_tmp}/before-paths.nul"
+  {
+    find . -maxdepth 1 -type f \( -name 'generated_*.go' -o -name documentation.md -o -name README.md \) -print0
+    find internal -type f -name 'generated_*.go' -print0
+  } | sort -z > "${generated_tmp}/before-paths.nul"
   mapfile -d '' -t generated_paths < "${generated_tmp}/before-paths.nul"
   printf '%s\n' "${generated_paths[@]}" > "${generated_tmp}/before-paths.txt"
   for file in "${generated_paths[@]}"; do
     cp --parents -p "${file}" "${generated_tmp}/before"
   done
   go generate ./...
-  find exporter/servicenoweventmanagementexporter -type f \
-    \( -name 'generated_*.go' -o -name documentation.md -o -name README.md \) -print0 \
-    | sort -z > "${generated_tmp}/after-paths.nul"
+  {
+    find . -maxdepth 1 -type f \( -name 'generated_*.go' -o -name documentation.md -o -name README.md \) -print0
+    find internal -type f -name 'generated_*.go' -print0
+  } | sort -z > "${generated_tmp}/after-paths.nul"
   mapfile -d '' -t generated_paths_after < "${generated_tmp}/after-paths.nul"
   printf '%s\n' "${generated_paths_after[@]}" > "${generated_tmp}/after-paths.txt"
   if ! diff -u "${generated_tmp}/before-paths.txt" "${generated_tmp}/after-paths.txt"; then
@@ -298,7 +313,7 @@ if [[ -f go.mod ]]; then
 
   log "go coverage"
   coverage_tmp="$(mktemp)"
-  go test ./exporter/servicenoweventmanagementexporter -coverprofile="${coverage_tmp}" >/dev/null
+  go test . -coverprofile="${coverage_tmp}" >/dev/null
   coverage_total="$(go tool cover -func="${coverage_tmp}" | awk '/^total:/ { gsub(/%/, "", $3); print $3 }')"
   coverage_threshold="${SERVICENOW_EVENT_MANAGEMENT_COVERAGE_THRESHOLD:-90.0}"
   awk -v coverage="${coverage_total}" -v threshold="${coverage_threshold}" 'BEGIN { exit !(coverage + 0 >= threshold + 0) }' || {

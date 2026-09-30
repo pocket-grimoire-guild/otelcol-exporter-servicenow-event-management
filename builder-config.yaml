@@ -2,12 +2,13 @@ dist:
   name: otelcol-servicenow-event-management-dev
   description: Local OpenTelemetry Collector distribution for ServiceNow Event Management exporter development
   output_path: ./otelcol-servicenow-event-management-dev
-  version: 0.2.0
+  version: 0.3.0
 
 exporters:
   - gomod:
       github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management v0.0.0
-    import: github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management/exporter/servicenoweventmanagementexporter
+    import: github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management
+    name: servicenoweventmanagementexporter
     path: .
   - gomod:
       go.opentelemetry.io/collector/exporter/debugexporter v0.153.0

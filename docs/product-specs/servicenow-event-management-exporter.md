@@ -25,6 +25,12 @@ The exporter should make ServiceNow alert ingestion work through normal Collecto
 - Source-specific connector endpoints such as `source=prometheus`, unless added as a later endpoint mode.
 - ServiceNow OTel metrics collection through MID `/api/mid/sa/inbound_metrics`; that path is documented as adjacent, not as this exporter.
 
+## Go Package And Instrumentation Scope
+
+Starting with v0.3.0, the module and exporter package share the import path `github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management`. The Go package declaration remains `servicenoweventmanagementexporter`, and the Collector component ID remains `servicenow_event_management`. The package move removes the former v0.2.0 import path `github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management/exporter/servicenoweventmanagementexporter`; consumers must update OCB manifests and direct Go imports. This is a breaking pre-1.0 API change. The Collector YAML configuration contract is unchanged.
+
+The exporter instrumentation scope is the package import path, so it changes from the former nested path to the root module path in v0.3.0. Telemetry consumers that filter or group data by scope name must update that value. This remains a standalone development/public-preview component; the package move does not change its stability.
+
 ## ServiceNow Decision Sources
 
 ServiceNow documentation is intentionally linked here for vendor-shaped behavior. Keep [docs/references/source-map.md](../references/source-map.md) as the detailed bibliography and last-reviewed record.

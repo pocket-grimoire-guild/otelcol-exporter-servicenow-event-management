@@ -6,6 +6,8 @@ It is intended for teams that want to build their own custom OpenTelemetry Colle
 
 This project is not an official ServiceNow product and is not currently part of `opentelemetry-collector-contrib`.
 
+Version `v0.3.0` is a standalone development/public preview. It keeps the existing `servicenow_event_management` Collector component and YAML contract while moving the Go package to the repository root.
+
 OpenTelemetry contrib readiness is tracked in [docs/contrib-readiness.md](docs/contrib-readiness.md).
 
 ## ServiceNow Documentation
@@ -60,7 +62,7 @@ export SERVICENOW_PASSWORD='...'
   --config examples/servicenow-event-management-exporter.yaml
 ```
 
-After v0.2.0 is available from the public Go module proxy, consumers can build from its tagged OCB manifest:
+After v0.3.0 is available from the public Go module proxy, consumers can build from its tagged OCB manifest:
 
 ```bash
 .tools/bin/builder --config examples/collector-builder.yaml
@@ -100,16 +102,55 @@ JSON
 
 ## Collector Builder Manifest
 
-For a released build, use a module version available from your Go module proxy. The v0.2.0 manifest is:
+For a released build, use a module version available from your Go module proxy. The v0.3.0 manifest is:
 
 ```yaml
 exporters:
   - gomod:
-      github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management v0.2.0
-    import: github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management/exporter/servicenoweventmanagementexporter
+      github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management v0.3.0
+    import: github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management
+    name: servicenoweventmanagementexporter
 ```
 
 The local development manifest in [builder-config.yaml](builder-config.yaml) uses `path: .` so contributors can build from a checkout.
+
+### Go Package Migration in v0.3.0
+
+The module path stays `github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management`; v0.3.0 moves its exporter package from a nested directory to the module root. The package name remains `servicenoweventmanagementexporter`.
+
+In v0.2.0 and earlier, import the nested package:
+
+```go
+import servicenoweventmanagementexporter "github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management/exporter/servicenoweventmanagementexporter"
+```
+
+Starting with v0.3.0, import the root package:
+
+```go
+import servicenoweventmanagementexporter "github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management"
+```
+
+The matching Collector Builder entries are:
+
+```yaml
+# v0.2.0 and earlier
+exporters:
+  - gomod:
+      github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management v0.2.0
+    import: github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management/exporter/servicenoweventmanagementexporter
+    name: servicenoweventmanagementexporter
+```
+
+```yaml
+# v0.3.0
+exporters:
+  - gomod:
+      github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management v0.3.0
+    import: github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management
+    name: servicenoweventmanagementexporter
+```
+
+The old nested import is absent in v0.3.0; there is no compatibility layer. This is a breaking pre-1.0 Go import change. The package name, `NewFactory`, Collector component type `servicenow_event_management`, and its YAML settings remain unchanged. Generated meter and tracer instrumentation scopes move from the former nested import path to the root path; update scope-based filters, dashboards, or alerts. See [Exporter Behavior](docs/exporter-behavior.md) for mapping and event semantics and [the configuration reference](docs/configuration.md) for the YAML options.
 
 ## Development Tools
 
@@ -142,6 +183,7 @@ extensions:
 ```
 
 See [docs/configuration.md](docs/configuration.md) for the complete option reference.
+See [docs/exporter-behavior.md](docs/exporter-behavior.md) for mapping details, diagnostics, and event identity behavior.
 
 ## Examples
 

@@ -2,8 +2,8 @@
 set -euo pipefail
 
 readonly EXPECTED_REPO='pocket-grimoire-guild/otelcol-exporter-servicenow-event-management'
-readonly EXPECTED_TAG='v0.2.0'
-readonly EXPECTED_TITLE='v0.2.0 — development/public preview'
+readonly EXPECTED_TAG='v0.3.0'
+readonly EXPECTED_TITLE='v0.3.0 — development/public preview'
 
 fail() {
   printf 'release-preview: %s\n' "$*" >&2
@@ -50,7 +50,7 @@ check_remote_tag
 git fetch --no-tags origin '+refs/heads/main:refs/remotes/origin/main' || fail 'could not fetch origin/main'
 git merge-base --is-ancestor "$RELEASE_SHA" refs/remotes/origin/main || fail 'tagged commit is not merged into origin/main'
 
-readonly NOTES_FILE='docs/releases/v0.2.0.md'
+readonly NOTES_FILE='docs/releases/v0.3.0.md'
 [[ -s "$NOTES_FILE" ]] || fail "maintained notes file $NOTES_FILE is missing or empty"
 grep -q '[^[:space:]]' "$NOTES_FILE" || fail 'maintained notes contain no non-whitespace content'
 if grep -Eq '^Source commit: ' "$NOTES_FILE"; then

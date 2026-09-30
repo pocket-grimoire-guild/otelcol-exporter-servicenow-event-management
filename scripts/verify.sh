@@ -177,6 +177,8 @@ required_files=(
   docs/mid-business-rules.md
   docs/production-hardening.md
   docs/release.md
+  docs/releases/v0.3.0.md
+  docs/releases/v0.2.0.md
   docs/servicenow-real-instance-testing.md
   docs/troubleshooting.md
   docs/validation-evidence/README.md
@@ -205,6 +207,7 @@ required_files=(
   scripts/run-metrics-event-smoke.sh
   scripts/test-metrics-event.sh
   scripts/test-trace-exception.sh
+  tests/release/test_release_preview.py
   tests/metricsevent/example_test.go
   tests/traceexception/example_test.go
 )
@@ -214,6 +217,9 @@ for file in "${required_files[@]}"; do
     exit 1
   }
 done
+
+log "test release preview guards with mocked git and gh"
+python3 -B -m unittest discover -s tests/release -v
 
 log "check focused repository context"
 if git grep -n -E -- 'jupyter|streamlit|reverse-engineer|git-lfs|libreoffice|pandoc|tesseract|wkhtmltopdf' \

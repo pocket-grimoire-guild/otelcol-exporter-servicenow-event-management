@@ -116,7 +116,41 @@ The local development manifest in [builder-config.yaml](builder-config.yaml) use
 
 ### Go Package Migration in v0.3.0
 
-The exporter package and module now share the import path `github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management`. Its Go package name remains `servicenoweventmanagementexporter`. Consumers that stay pinned to v0.2.0 keep using its nested path, `github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management/exporter/servicenoweventmanagementexporter`; that path is removed in v0.3.0. Update OCB manifests and direct Go imports when upgrading; the Collector component ID `servicenow_event_management` and exporter YAML remain unchanged. This pre-1.0 package move is a breaking Go import change. The instrumentation scope also changes from the former nested path to the root import path, so update scope-based filters, dashboards, or alerts. See [Exporter Behavior](docs/exporter-behavior.md) for mapping and event semantics and [the configuration reference](docs/configuration.md) for the YAML options.
+The module path stays `github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management`; v0.3.0 moves its exporter package from a nested directory to the module root. The package name remains `servicenoweventmanagementexporter`.
+
+In v0.2.0 and earlier, import the nested package:
+
+```go
+import servicenoweventmanagementexporter "github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management/exporter/servicenoweventmanagementexporter"
+```
+
+Starting with v0.3.0, import the root package:
+
+```go
+import servicenoweventmanagementexporter "github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management"
+```
+
+The matching Collector Builder entries are:
+
+```yaml
+# v0.2.0 and earlier
+exporters:
+  - gomod:
+      github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management v0.2.0
+    import: github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management/exporter/servicenoweventmanagementexporter
+    name: servicenoweventmanagementexporter
+```
+
+```yaml
+# v0.3.0
+exporters:
+  - gomod:
+      github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management v0.3.0
+    import: github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management
+    name: servicenoweventmanagementexporter
+```
+
+The old nested import is absent in v0.3.0; there is no compatibility layer. This is a breaking pre-1.0 Go import change. The package name, `NewFactory`, Collector component type `servicenow_event_management`, and its YAML settings remain unchanged. Generated meter and tracer instrumentation scopes move from the former nested import path to the root path; update scope-based filters, dashboards, or alerts. See [Exporter Behavior](docs/exporter-behavior.md) for mapping and event semantics and [the configuration reference](docs/configuration.md) for the YAML options.
 
 ## Development Tools
 

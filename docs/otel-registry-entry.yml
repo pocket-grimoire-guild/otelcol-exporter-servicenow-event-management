@@ -1,5 +1,7 @@
-# Proposed OpenTelemetry Registry entry. Submit or update it after v0.3.0 is
-# publicly available. Collector exporters use registryType: exporter.
+# Proposed OpenTelemetry Registry entry, retained as a draft reference. Registry
+# submissions are frozen (https://opentelemetry.io/ecosystem/registry/adding/),
+# so do not submit it. Recheck acceptance and registryType if it reopens; the
+# current type is provisional.
 
 title: ServiceNow Event Management Collector Exporter
 registryType: exporter

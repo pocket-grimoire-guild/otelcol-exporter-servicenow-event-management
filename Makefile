@@ -37,7 +37,7 @@ docs-check:
 	./scripts/check-docs.sh
 
 generate:
-	@if find . -name metadata.yaml -print -quit | grep -q .; then \
+	@if [[ -f metadata.yaml ]]; then \
 		PATH="$(TOOLS_PATH)" ./scripts/check-collector-tool-version.sh mdatagen go.opentelemetry.io/collector/cmd/mdatagen "$(OTEL_COLLECTOR_VERSION)" >/dev/null && \
 		PATH="$(TOOLS_PATH)" go generate ./...; \
 	else \

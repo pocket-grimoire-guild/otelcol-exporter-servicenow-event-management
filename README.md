@@ -6,6 +6,8 @@ It is intended for teams that want to build their own custom OpenTelemetry Colle
 
 This project is not an official ServiceNow product and is not currently part of `opentelemetry-collector-contrib`.
 
+Version `v0.3.0` is a standalone development/public preview. It keeps the existing `servicenow_event_management` Collector component and YAML contract while moving the Go package to the repository root.
+
 OpenTelemetry contrib readiness is tracked in [docs/contrib-readiness.md](docs/contrib-readiness.md).
 
 ## ServiceNow Documentation
@@ -60,7 +62,7 @@ export SERVICENOW_PASSWORD='...'
   --config examples/servicenow-event-management-exporter.yaml
 ```
 
-After v0.2.0 is available from the public Go module proxy, consumers can build from its tagged OCB manifest:
+After v0.3.0 is available from the public Go module proxy, consumers can build from its tagged OCB manifest:
 
 ```bash
 .tools/bin/builder --config examples/collector-builder.yaml
@@ -100,16 +102,21 @@ JSON
 
 ## Collector Builder Manifest
 
-For a released build, use a module version available from your Go module proxy. The v0.2.0 manifest is:
+For a released build, use a module version available from your Go module proxy. The v0.3.0 manifest is:
 
 ```yaml
 exporters:
   - gomod:
-      github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management v0.2.0
-    import: github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management/exporter/servicenoweventmanagementexporter
+      github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management v0.3.0
+    import: github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management
+    name: servicenoweventmanagementexporter
 ```
 
 The local development manifest in [builder-config.yaml](builder-config.yaml) uses `path: .` so contributors can build from a checkout.
+
+### Go Package Migration in v0.3.0
+
+The exporter package and module now share the import path `github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management`. Its Go package name remains `servicenoweventmanagementexporter`. Consumers that stay pinned to v0.2.0 keep using its nested path, `github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management/exporter/servicenoweventmanagementexporter`; that path is removed in v0.3.0. Update OCB manifests and direct Go imports when upgrading; the Collector component ID `servicenow_event_management` and exporter YAML remain unchanged. This pre-1.0 package move is a breaking Go import change. The instrumentation scope also changes from the former nested path to the root import path, so update scope-based filters, dashboards, or alerts. See [Exporter Behavior](docs/exporter-behavior.md) for mapping and event semantics and [the configuration reference](docs/configuration.md) for the YAML options.
 
 ## Development Tools
 
@@ -142,6 +149,7 @@ extensions:
 ```
 
 See [docs/configuration.md](docs/configuration.md) for the complete option reference.
+See [docs/exporter-behavior.md](docs/exporter-behavior.md) for mapping details, diagnostics, and event identity behavior.
 
 ## Examples
 

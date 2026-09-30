@@ -13,7 +13,7 @@ import (
 
 var (
 	Type      = component.MustNewType("servicenow_event_management")
-	ScopeName = "github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management/exporter/servicenoweventmanagementexporter"
+	ScopeName = "github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management"
 )
 
 const (

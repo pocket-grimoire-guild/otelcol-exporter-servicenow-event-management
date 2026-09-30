@@ -3,12 +3,13 @@ dist:
   name: otelcol-servicenow-event-management-trace-exception
   description: OpenTelemetry Collector with ServiceNow Event Management trace exception recipe
   output_path: ./otelcol-servicenow-event-management-trace-exception
-  version: 0.2.0
+  version: 0.3.0
 
 exporters:
   - gomod:
-      github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management v0.2.0
-    import: github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management/exporter/servicenoweventmanagementexporter
+      github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management v0.3.0
+    import: github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management
+    name: servicenoweventmanagementexporter
 
 processors:
   - gomod:

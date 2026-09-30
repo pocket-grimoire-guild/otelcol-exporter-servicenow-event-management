@@ -11,7 +11,7 @@ When OCB or builder is installed, `make verify` also builds the separate maintai
 - `make race`: runs Go race tests when the module exists.
 - `make lint`: runs `golangci-lint` when the module exists.
 - `make build-collector`: runs OCB against `builder-config.yaml` when OCB is installed.
-- `make verify` enforces at least 90% statement coverage for `exporter/servicenoweventmanagementexporter`.
+- `make verify` enforces at least 90% statement coverage for the root `servicenoweventmanagementexporter` Go package.
 - CI and `make verify` also validate checked-in Basic, bearer, OAuth, and MID Collector examples after a successful local Collector build.
 - Release readiness includes changelog, security policy, support notes, OCB consumer manifest, and a draft OpenTelemetry Registry entry.
 

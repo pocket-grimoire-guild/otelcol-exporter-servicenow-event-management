@@ -4,5 +4,5 @@
 // Package servicenoweventmanagementexporter exports OpenTelemetry logs to ServiceNow ITOM
 // Event Management JSON v2.
 //
-//go:generate ../../scripts/run-mdatagen.sh metadata.yaml
+//go:generate ./scripts/run-mdatagen.sh metadata.yaml
 package servicenoweventmanagementexporter

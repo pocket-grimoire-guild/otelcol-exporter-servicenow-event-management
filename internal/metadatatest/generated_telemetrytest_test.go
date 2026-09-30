@@ -13,7 +13,7 @@ import (
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata/metricdatatest"
 
-	"github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management/exporter/servicenoweventmanagementexporter/internal/metadata"
+	"github.com/pocket-grimoire-guild/otelcol-exporter-servicenow-event-management/internal/metadata"
 	"go.opentelemetry.io/collector/component/componenttest"
 )
 

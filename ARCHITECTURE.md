@@ -4,7 +4,7 @@ This project builds an OpenTelemetry Collector exporter for ServiceNow ITOM Even
 
 ## Current Codemap
 
-- `exporter/servicenoweventmanagementexporter`: Collector exporter package.
+- The repository root is the `servicenoweventmanagementexporter` Go package and module import path.
   - `factory.go`: component type, default config, signal registration, lifecycle wiring, and `exporterhelper` integration.
   - `config.go`: typed config, validation, defaults, auth options.
   - `runtime_config.go`: private normalized route, mapping, retry, queue, and HTTP client config used after startup validation.
@@ -17,8 +17,8 @@ This project builds an OpenTelemetry Collector exporter for ServiceNow ITOM Even
   - `client.go`: HTTP transport, endpoint route resolution, safe error summaries, and retry classification.
   - `metadata.yaml`: component metadata for `mdatagen`.
   - `doc.go`: package docs and the version-checked `run-mdatagen.sh` generator directive.
-  - `README.md`: user-facing exporter configuration.
   - `internal/metadata`: generated component type and stability metadata.
+- `docs/exporter-behavior.md`: focused mapping and event-behavior reference; the root `README.md` remains the repository overview.
 - `examples`: Collector and ServiceNow smoke-test examples.
 - `docs/product-specs`: durable product behavior and API decisions.
 - `docs/validation-evidence`: sanitized real-instance and local integration evidence.
@@ -57,9 +57,10 @@ This project builds an OpenTelemetry Collector exporter for ServiceNow ITOM Even
 - **Throttling:** honor `Retry-After` on retryable `429` and `503` responses through `exporterhelper.NewThrottleRetry`; otherwise use normal Collector retry backoff.
 - **Observability:** rely on Collector/exporterhelper telemetry for queue, retry, and request behavior. The bounded mapping-diagnostics counter records reached per-record reasons per mapping attempt with only fixed `reason` and exporter-ID `exporter` attributes; it is not delivery-loss accounting and retries repeat observations.
 - **Distribution:** `builder-config.yaml` includes the local exporter by module path plus `path`; generated OCB output stays ignored.
+- **Go package migration:** v0.3.0 moves the package from the former nested import to the module root. The Go package name, Collector component ID, and YAML contract stay the same; instrumentation scope follows the new root import path. This is a breaking pre-1.0 Go import change.
 - **Metadata:** keep `metadata.yaml` distribution and codeowner fields aligned with the repository's actual status. Standalone metadata should not imply OpenTelemetry Collector contrib ownership until a real contrib migration occurs.
 - **Naming:** keep the module path, Collector Builder manifests, registry metadata, docs, generated metadata, examples, and binary names aligned. Do not rename ServiceNow-owned API or table identifiers such as `/api/global/em/jsonv2`, `/api/mid/em/jsonv2`, `em_event.do`, or `em_event`.
-- **Verification:** after `make install-tools`, `make verify` enforces generated metadata reproducibility, Go tests, race tests, lint, 90% exporter package coverage, SPDX headers, an OCB build, example validation, and maintained fake-backed integration gates.
+- **Verification:** after `make install-tools`, `make verify` enforces generated metadata reproducibility, Go tests, race tests, lint, 90% root-package coverage, SPDX headers, an OCB build, example validation, and maintained fake-backed integration gates.
 - **Real-instance validation:** local tests use fake endpoints; credentialed ServiceNow checks follow `docs/servicenow-real-instance-testing.md` and record sanitized evidence in `docs/validation-evidence`.
 
 ## Maintainability Notes
